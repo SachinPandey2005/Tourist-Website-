@@ -1,0 +1,27 @@
+{
+  "name": "tourist-website",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tourist Website full-stack monorepo with React, Express, PostgreSQL, and Prisma",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"api,web\" -c \"cyan,teal\" \"npm run dev --workspace=@tourist/api\" \"npm run dev --workspace=@tourist/web\"",
+    "dev:api": "npm run dev --workspace=@tourist/api",
+    "dev:web": "npm run dev --workspace=@tourist/web",
+    "build:shared": "npm run build --workspace=@tourist/shared",
+    "build:api": "npm run build --workspace=@tourist/api",
+    "build:web": "npm run build --workspace=@tourist/web",
+    "build": "npm run build:shared && npm run build:api && npm run build:web",
+    "typecheck": "npm run typecheck --workspace=@tourist/shared && npm run typecheck --workspace=@tourist/api && npm run typecheck --workspace=@tourist/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace=@tourist/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
