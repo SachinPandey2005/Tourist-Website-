@@ -7,11 +7,13 @@ Ensure the following tools are installed on your workstation:
 - **Git**: `v2.x+`
 - **PostgreSQL**: `v14.x` or higher (local or managed instance such as Supabase/Neon)
 
+---
+
 ## 2. Quickstart Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/SachinPandey2005/Tourist-Website-.git
    cd "tourist website"
    ```
 
@@ -46,21 +48,57 @@ Ensure the following tools are installed on your workstation:
 
 ---
 
-## 3. Workspaces & Monorepo Commands
+## 3. Backend Architecture (`apps/api`)
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Concurrently starts both API and Web in watch/dev mode |
-| `npm run dev:api` | Starts only the Express API service via `tsx watch` |
-| `npm run dev:web` | Starts only the Vite React dev server |
-| `npm run build` | Builds `@tourist/shared`, `@tourist/api`, and `@tourist/web` |
-| `npm run typecheck` | Executes TypeScript type checking across all workspaces |
-| `npm run test` | Runs all Vitest and Supertest test suites across packages |
-| `npm run prisma:generate` | Generates the Prisma client from `schema.prisma` |
+The backend is organized into decoupled layers:
+```text
+apps/api/src/
+├── config/             # Zod environment validation (env.ts) & Prisma singleton (database.ts)
+├── controllers/        # HTTP handlers handling req/res (e.g. health.controller.ts)
+├── services/           # Reusable business logic & database queries (health.service.ts)
+├── middleware/         # Error handler, 404, Zod validator, rate limiter, logger
+├── routes/             # Route definitions and URL mapping (health.routes.ts, index.ts)
+├── validators/         # Reusable Zod schemas for pagination, IDs, slugs (common.validator.ts)
+├── utils/              # AppError hierarchy, ApiResponseBuilder, pagination helpers
+├── types/              # Internal TypeScript types and DTO exports
+├── app.ts              # Express application configuration & middleware pipeline
+└── server.ts           # HTTP server listener with graceful shutdown & signal traps
+```
 
 ---
 
-## 4. Verification
+## 4. Workspaces & Monorepo Commands
+
+| Command | Workspace | Description |
+|---|---|---|
+| `npm run dev` | Root | Concurrently starts API and Web in watch mode |
+| `npm run dev:api` | `@tourist/api` | Starts Express service via `tsx watch src/server.ts` |
+| `npm run dev:web` | `@tourist/web` | Starts Vite React dev server on port 5173 |
+| `npm run build` | Root | Builds shared contracts, API, and Web bundles |
+| `npm run build:api` | `@tourist/api` | Compiles API TypeScript to `dist/` |
+| `npm run start --workspace=@tourist/api` | `@tourist/api` | Starts production server with `node dist/server.js` |
+| `npm run typecheck` | Root | Executes strict TypeScript checking across all workspaces |
+| `npm run test` | Root | Runs all Vitest test suites (health, validation, errors, React) |
+| `npm run prisma:generate` | `@tourist/api` | Generates Prisma client from `schema.prisma` |
+| `npm run prisma:migrate` | `@tourist/api` | Applies schema migrations to active PostgreSQL database |
+| `npm run prisma:seed` | `@tourist/api` | Seeds realistic destinations, tours, hotels, and activities |
+
+---
+
+## 5. Environment Variables Reference (`apps/api/.env`)
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `5000` | Port for Express HTTP listener |
+| `NODE_ENV` | `development` | Environment mode (`development`, `test`, `production`) |
+| `CORS_ORIGIN` | `http://localhost:5173` | Allowed frontend origin for CORS headers |
+| `DATABASE_URL` | *Required* | PostgreSQL connection string |
+| `RATE_LIMIT_WINDOW_MS` | `900000` (15m) | Rate limiting sliding window in milliseconds |
+| `RATE_LIMIT_MAX` | `100` | Maximum requests allowed per IP per window |
+
+---
+
+## 6. Verification
 
 After running `npm run dev`:
 - Open **Web Frontend**: [http://localhost:5173](http://localhost:5173)
@@ -69,11 +107,13 @@ After running `npm run dev`:
 
 ---
 
-## 5. Troubleshooting
+## 7. Troubleshooting
 
+- **Database Disconnected**:
+  If no PostgreSQL instance is running, `/api/health` reports status `degraded` and `services.database: "disconnected"` without crashing the server.
 - **Port Conflict (5000 or 5173 in use)**:
   Update `PORT` in `apps/api/.env` and adjust the proxy target in `apps/web/vite.config.ts`.
-- **Prisma Client Missing**:
-  Run `npm run prisma:generate` after modifying the schema or checking out the repo.
-- **TypeScript Resolution Issue**:
-  Run `npm run build:shared` to ensure shared dist declaration files exist.
+- **Validation Errors**:
+  Request parameters failing Zod schema checks return `422 Unprocessable Entity` with a structured `details` array.
+- **Graceful Shutdown**:
+  The server traps `SIGTERM` and `SIGINT`, closes incoming HTTP connections, and disconnects the Prisma connection pool before exiting cleanly.
