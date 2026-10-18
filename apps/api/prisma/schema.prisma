@@ -1,5 +1,5 @@
-// Tourist Website - Prisma Schema
-// Database Engine: PostgreSQL
+// Tourist Website - Prisma PostgreSQL Schema
+// Phase 2: Enterprise Relational Database Architecture
 
 datasource db {
   provider = "postgresql"
@@ -10,10 +10,39 @@ generator client {
   provider = "prisma-client-js"
 }
 
-enum Role {
+// =========================================================================
+// ENUMS
+// =========================================================================
+
+enum UserRole {
   ADMIN
   GUIDE
   TOURIST
+}
+
+enum DestinationCategory {
+  BEACH
+  MOUNTAIN
+  HISTORICAL
+  ADVENTURE
+  URBAN
+  CULTURAL
+  NATURE
+  WILDLIFE
+}
+
+enum TourDifficulty {
+  EASY
+  MODERATE
+  CHALLENGING
+  DIFFICULT
+}
+
+enum ScheduleStatus {
+  AVAILABLE
+  ALMOST_FULL
+  SOLD_OUT
+  CANCELLED
 }
 
 enum BookingStatus {
@@ -23,66 +52,360 @@ enum BookingStatus {
   COMPLETED
 }
 
-model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String
-  role      Role      @default(TOURIST)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  bookings  Booking[]
-  reviews   Review[]
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
 
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  STRIPE
+  BANK_TRANSFER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// =========================================================================
+// USER & IDENTITY
+// =========================================================================
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String?
+  name            String
+  phoneNumber     String?
+  avatarUrl       String?
+  role            UserRole @default(TOURIST)
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  bookings  Booking[] // Preserved with onDelete: Restrict
+  payments  Payment[] // Preserved with onDelete: Restrict
+  reviews   Review[]
+  favorites Favorite[]
+
+  @@index([email])
+  @@index([role])
   @@map("users")
 }
 
-model Destination {
-  id          String    @id @default(uuid())
-  title       String
-  slug        String    @unique
-  description String
-  location    String
-  country     String
-  price       Decimal   @db.Decimal(10, 2)
-  imageUrl    String
-  rating      Float     @default(0.0)
-  isFeatured  Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  bookings    Booking[]
-  reviews     Review[]
+// =========================================================================
+// DESTINATIONS & CATALOG
+// =========================================================================
 
+model Destination {
+  id               String              @id @default(uuid())
+  title            String
+  slug             String              @unique
+  description      String              @db.Text
+  shortDescription String?             @db.VarChar(300)
+  country          String
+  city             String?
+  location         String
+  latitude         Float?
+  longitude        Float?
+  category         DestinationCategory @default(CULTURAL)
+  imageUrl         String
+  galleryImages    String[]
+  rating           Float               @default(0.0)
+  reviewCount      Int                 @default(0)
+  isFeatured       Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relationships
+  tours      TourPackage[]
+  hotels     Hotel[]
+  activities Activity[]
+  reviews    Review[]
+  favorites  Favorite[]
+
+  @@index([slug])
+  @@index([category])
+  @@index([country])
+  @@index([isFeatured])
   @@map("destinations")
 }
 
-model Booking {
-  id            String        @id @default(uuid())
-  userId        String
+// =========================================================================
+// TOURS & SCHEDULES
+// =========================================================================
+
+model TourPackage {
+  id             String         @id @default(uuid())
+  destinationId  String
+  title          String
+  slug           String         @unique
+  description    String         @db.Text
+  highlights     String[]
+  durationDays   Int            @default(1)
+  durationNights Int            @default(0)
+  basePrice      Decimal        @db.Decimal(10, 2)
+  discountPrice  Decimal?       @db.Decimal(10, 2)
+  maxGroupSize   Int            @default(15)
+  difficulty     TourDifficulty @default(MODERATE)
+  featuredImage  String
+  galleryImages  String[]
+  rating         Float          @default(0.0)
+  reviewCount    Int            @default(0)
+  isPublished    Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relationships
+  destination  Destination    @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  schedules    TourSchedule[]
+  bookingItems BookingItem[]
+  reviews      Review[]
+  favorites    Favorite[]
+
+  @@index([destinationId])
+  @@index([slug])
+  @@index([basePrice])
+  @@index([isPublished])
+  @@map("tour_packages")
+}
+
+model TourSchedule {
+  id             String         @id @default(uuid())
+  tourPackageId  String
+  startDate      DateTime
+  endDate        DateTime
+  price          Decimal        @db.Decimal(10, 2)
+  totalCapacity  Int
+  bookedCapacity Int            @default(0)
+  status         ScheduleStatus @default(AVAILABLE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relationships
+  tourPackage  TourPackage   @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
+  bookingItems BookingItem[]
+
+  @@index([tourPackageId, startDate])
+  @@index([status])
+  @@map("tour_schedules")
+}
+
+// =========================================================================
+// ACCOMMODATIONS & ACTIVITIES
+// =========================================================================
+
+model Hotel {
+  id            String   @id @default(uuid())
   destinationId String
-  startDate     DateTime
-  endDate       DateTime
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  status        BookingStatus @default(PENDING)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  name          String
+  slug          String   @unique
+  description   String   @db.Text
+  address       String
+  starRating    Int      @default(3)
+  pricePerNight Decimal  @db.Decimal(10, 2)
+  amenities     String[]
+  imageUrl      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  destination   Destination   @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  // Relationships
+  destination  Destination   @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  bookingItems BookingItem[]
 
+  @@index([destinationId])
+  @@index([pricePerNight])
+  @@map("hotels")
+}
+
+model Activity {
+  id            String   @id @default(uuid())
+  destinationId String
+  name          String
+  slug          String   @unique
+  description   String   @db.Text
+  durationHours Float
+  price         Decimal  @db.Decimal(10, 2)
+  imageUrl      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  destination  Destination   @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  bookingItems BookingItem[]
+
+  @@index([destinationId])
+  @@index([price])
+  @@map("activities")
+}
+
+// =========================================================================
+// PROMOTIONS & COUPONS
+// =========================================================================
+
+model Coupon {
+  id                String       @id @default(uuid())
+  code              String       @unique
+  description       String?
+  discountType      DiscountType @default(PERCENTAGE)
+  discountValue     Decimal      @db.Decimal(10, 2)
+  minBookingAmount  Decimal?     @db.Decimal(10, 2)
+  maxDiscountAmount Decimal?     @db.Decimal(10, 2)
+  maxUses           Int?
+  usedCount         Int          @default(0)
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relationships
+  bookings Booking[]
+
+  @@index([code])
+  @@index([isActive, startDate, endDate])
+  @@map("coupons")
+}
+
+// =========================================================================
+// BOOKINGS & BOOKING ITEMS (RELIABLE SNAPSHOT PATTERN)
+// =========================================================================
+
+model Booking {
+  id               String        @id @default(uuid())
+  bookingReference String        @unique
+  userId           String
+  couponId         String?
+  status           BookingStatus @default(PENDING)
+  subtotal         Decimal       @db.Decimal(10, 2)
+  discountAmount   Decimal       @default(0.00) @db.Decimal(10, 2)
+  taxAmount        Decimal       @default(0.00) @db.Decimal(10, 2)
+  totalAmount      Decimal       @db.Decimal(10, 2)
+  currency         String        @default("USD")
+  specialRequests  String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Financial audit protection: Restrict deletion of users with historical bookings
+  user     User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  coupon   Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  items    BookingItem[]
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([bookingReference])
+  @@index([createdAt])
   @@map("bookings")
 }
 
+model BookingItem {
+  id             String  @id @default(uuid())
+  bookingId      String
+  tourPackageId  String?
+  tourScheduleId String?
+  hotelId        String?
+  activityId     String?
+
+  // Immutable historical snapshots
+  itemTitle  String
+  unitPrice  Decimal   @db.Decimal(10, 2)
+  quantity   Int       @default(1)
+  totalPrice Decimal   @db.Decimal(10, 2)
+  startDate  DateTime?
+  endDate    DateTime?
+  createdAt  DateTime  @default(now())
+
+  // Relationships
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tourPackage  TourPackage?  @relation(fields: [tourPackageId], references: [id], onDelete: SetNull)
+  tourSchedule TourSchedule? @relation(fields: [tourScheduleId], references: [id], onDelete: SetNull)
+  hotel        Hotel?        @relation(fields: [hotelId], references: [id], onDelete: SetNull)
+  activity     Activity?     @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([tourPackageId])
+  @@index([tourScheduleId])
+  @@map("booking_items")
+}
+
+// =========================================================================
+// PAYMENTS (SEPARATED FROM BOOKING STATUS)
+// =========================================================================
+
+model Payment {
+  id                   String        @id @default(uuid())
+  paymentReference     String        @unique
+  bookingId            String
+  userId               String
+  amount               Decimal       @db.Decimal(10, 2)
+  currency             String        @default("USD")
+  status               PaymentStatus @default(PENDING)
+  method               PaymentMethod @default(CREDIT_CARD)
+  gatewayTransactionId String?
+  gatewayResponse      String?       @db.Text
+  paidAt               DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Financial audit protection
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([status])
+  @@index([paymentReference])
+  @@index([gatewayTransactionId])
+  @@map("payments")
+}
+
+// =========================================================================
+// REVIEWS & SOCIAL ENGAGEMENT
+// =========================================================================
+
 model Review {
-  id            String      @id @default(uuid())
-  rating        Int
-  comment       String
-  userId        String
-  destinationId String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                String   @id @default(uuid())
+  userId            String
+  destinationId     String?
+  tourPackageId     String?
+  rating            Int
+  title             String?
+  comment           String   @db.Text
+  isVerifiedBooking Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination Destination? @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  tourPackage TourPackage? @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([destinationId])
+  @@index([tourPackageId])
+  @@index([rating])
   @@map("reviews")
+}
+
+model Favorite {
+  id            String   @id @default(uuid())
+  userId        String
+  destinationId String?
+  tourPackageId String?
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination Destination? @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  tourPackage TourPackage? @relation(fields: [tourPackageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, destinationId])
+  @@unique([userId, tourPackageId])
+  @@index([userId])
+  @@map("favorites")
 }

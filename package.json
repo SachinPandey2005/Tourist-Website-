@@ -18,7 +18,9 @@
     "typecheck": "npm run typecheck --workspace=@tourist/shared && npm run typecheck --workspace=@tourist/api && npm run typecheck --workspace=@tourist/web",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "prisma:generate": "npm run prisma:generate --workspace=@tourist/api"
+    "prisma:generate": "npm run prisma:generate --workspace=@tourist/api",
+    "prisma:migrate": "npx --prefix apps/api prisma migrate dev",
+    "prisma:seed": "npm run prisma:seed --workspace=@tourist/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

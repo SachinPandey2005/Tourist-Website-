@@ -3,7 +3,10 @@
  * Common contracts, types, and constants shared across API and Web applications.
  */
 
-// API Response Contracts
+// =========================================================================
+// API RESPONSE CONTRACTS
+// =========================================================================
+
 export interface ApiErrorDetail {
   code: string;
   message: string;
@@ -17,7 +20,10 @@ export interface ApiResponse<T = unknown> {
   timestamp: string;
 }
 
-// Health Check Contract
+// =========================================================================
+// HEALTH CHECK CONTRACT
+// =========================================================================
+
 export type ServiceStatus = 'healthy' | 'unhealthy' | 'degraded';
 export type DatabaseStatus = 'connected' | 'disconnected' | 'pending';
 
@@ -33,7 +39,10 @@ export interface HealthCheckResponse {
   };
 }
 
-// Core Tourism Domain Types
+// =========================================================================
+// CORE DOMAIN ENUMS
+// =========================================================================
+
 export type UserRole = 'ADMIN' | 'GUIDE' | 'TOURIST';
 
 export type DestinationCategory =
@@ -43,13 +52,130 @@ export type DestinationCategory =
   | 'ADVENTURE'
   | 'URBAN'
   | 'CULTURAL'
-  | 'NATURE';
+  | 'NATURE'
+  | 'WILDLIFE';
 
-export type BookingStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'CANCELLED'
-  | 'COMPLETED';
+export type TourDifficulty = 'EASY' | 'MODERATE' | 'CHALLENGING' | 'DIFFICULT';
+
+export type ScheduleStatus = 'AVAILABLE' | 'ALMOST_FULL' | 'SOLD_OUT' | 'CANCELLED';
+
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+
+export type PaymentStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED';
+
+export type PaymentMethod =
+  | 'CREDIT_CARD'
+  | 'DEBIT_CARD'
+  | 'PAYPAL'
+  | 'STRIPE'
+  | 'BANK_TRANSFER';
+
+export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+// =========================================================================
+// DOMAIN DTO INTERFACES
+// =========================================================================
+
+export interface DestinationDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  shortDescription?: string | null;
+  country: string;
+  city?: string | null;
+  location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  category: DestinationCategory;
+  imageUrl: string;
+  galleryImages: string[];
+  rating: number;
+  reviewCount: number;
+  isFeatured: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TourScheduleDto {
+  id: string;
+  tourPackageId: string;
+  startDate: string;
+  endDate: string;
+  price: string;
+  totalCapacity: number;
+  bookedCapacity: number;
+  status: ScheduleStatus;
+}
+
+export interface TourPackageDto {
+  id: string;
+  destinationId: string;
+  title: string;
+  slug: string;
+  description: string;
+  highlights: string[];
+  durationDays: number;
+  durationNights: number;
+  basePrice: string;
+  discountPrice?: string | null;
+  maxGroupSize: number;
+  difficulty: TourDifficulty;
+  featuredImage: string;
+  galleryImages: string[];
+  rating: number;
+  reviewCount: number;
+  isPublished: boolean;
+  schedules?: TourScheduleDto[];
+}
+
+export interface BookingItemDto {
+  id: string;
+  bookingId: string;
+  tourPackageId?: string | null;
+  tourScheduleId?: string | null;
+  hotelId?: string | null;
+  activityId?: string | null;
+  itemTitle: string;
+  unitPrice: string;
+  quantity: number;
+  totalPrice: string;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface PaymentDto {
+  id: string;
+  paymentReference: string;
+  bookingId: string;
+  userId: string;
+  amount: string;
+  currency: string;
+  status: PaymentStatus;
+  method: PaymentMethod;
+  paidAt?: string | null;
+  createdAt: string;
+}
+
+export interface BookingDto {
+  id: string;
+  bookingReference: string;
+  userId: string;
+  couponId?: string | null;
+  status: BookingStatus;
+  subtotal: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  currency: string;
+  items: BookingItemDto[];
+  payments?: PaymentDto[];
+  createdAt: string;
+}
+
+// =========================================================================
+// PAGINATION
+// =========================================================================
 
 export interface PaginationParams {
   page?: number;
