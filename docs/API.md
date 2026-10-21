@@ -192,3 +192,189 @@ Resource ownership demonstration endpoint.
     "memoryUsageMb": 32.1
   }
   ```
+
+---
+
+## 6. Travel Discovery REST APIs (Phase 5)
+
+All catalog endpoints enforce server-side filtering, sorting, pagination, and strict Zod validation. Database records are returned directly from PostgreSQL (Prisma ORM).
+
+### 6.1. Destination APIs
+
+#### `GET /api/destinations`
+Lists destinations with multi-criteria filtering, search, and pagination.
+- **Query Parameters**:
+  - `page` (default: `1`), `pageSize` (default: `10`, max: `100`)
+  - `search` / `q`: case-insensitive search across title, country, city, location, description
+  - `category`: `BEACH` | `MOUNTAIN` | `HISTORICAL` | `ADVENTURE` | `URBAN` | `CULTURAL` | `NATURE` | `WILDLIFE`
+  - `region`: matches location, country, or city
+  - `country`, `city`: exact/partial match
+  - `isFeatured`: `true` | `false`
+  - `sortBy`: `title` | `rating` | `reviewCount` | `createdAt` | `country` (default: `createdAt`)
+  - `sortOrder`: `asc` | `desc` (default: `desc`)
+- **Example Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "items": [
+        {
+          "id": "30000000-0000-4000-a000-000000000003",
+          "title": "Kyoto Cultural Heritage",
+          "slug": "kyoto-cultural-heritage",
+          "description": "Ancient temples, peaceful bamboo groves, and traditional tea ceremonies.",
+          "country": "Japan",
+          "city": "Kyoto",
+          "location": "Kansai Region",
+          "category": "CULTURAL",
+          "imageUrl": "https://images.unsplash.com/kyoto.jpg",
+          "rating": 4.92,
+          "reviewCount": 42,
+          "isFeatured": true
+        }
+      ],
+      "pagination": { "page": 1, "pageSize": 10, "totalItems": 1, "totalPages": 1 }
+    }
+  }
+  ```
+
+#### `GET /api/destinations/:idOrSlug`
+Retrieves destination details by UUID or slug with related tours, hotels, and activities previews.
+- **Example**: `GET /api/destinations/kyoto-japan`
+- **Response**: `200 OK` (or `404 Not Found` if missing)
+
+#### Admin Destination CRUD
+- **`POST /api/destinations`** (Admin only): Creates destination. Auto-generates unique slug if not provided. Returns `201 Created`.
+- **`PATCH /api/destinations/:id`** (Admin only): Updates destination. Returns `200 OK`.
+- **`DELETE /api/destinations/:id`** (Admin only): Deletes destination. Returns `200 OK`.
+
+---
+
+### 6.2. Tour Package & Schedule APIs
+
+#### `GET /api/tours`
+Lists tour packages with comprehensive travel discovery filters.
+- **Query Parameters**:
+  - `page`, `pageSize`, `sortBy` (`basePrice`, `rating`, `reviewCount`, `durationDays`, `createdAt`, `title`), `sortOrder`
+  - `search` / `q`: text search across tour and destination titles/descriptions
+  - `destinationId`, `destinationSlug`: filter by destination
+  - `category`: destination category filter
+  - `difficulty`: `EASY` | `MODERATE` | `CHALLENGING` | `DIFFICULT`
+  - `minPrice`, `maxPrice`: numeric price bounds
+  - `durationDays`, `minDuration`, `maxDuration`: duration in days
+  - `hasAvailableSchedules`: `true` (filters tours with upcoming `AVAILABLE` schedules)
+- **Response**: `200 OK` with paginated tours.
+
+#### `GET /api/tours/:idOrSlug`
+Retrieves full tour package details with upcoming schedules, destination details, and recent traveler reviews.
+
+#### `GET /api/tours/:tourId/schedules`
+Lists available departure dates, capacity, booked slots, and status (`AVAILABLE`, `ALMOST_FULL`, `SOLD_OUT`, `CANCELLED`).
+
+#### Admin Tour & Schedule Operations
+- **`POST /api/tours`** (Admin only): Creates tour package. Returns `201 Created`.
+- **`PATCH /api/tours/:id`** (Admin only): Updates tour details. Returns `200 OK`.
+- **`DELETE /api/tours/:id`** (Admin only): Deletes tour package. Returns `200 OK`.
+- **`POST /api/tours/:tourId/schedules`** (Admin only): Adds new departure schedule.
+- **`PATCH /api/tours/:tourId/schedules/:scheduleId`** (Admin only): Updates schedule capacity & status.
+- **`DELETE /api/tours/:tourId/schedules/:scheduleId`** (Admin only): Deletes departure schedule.
+
+---
+
+### 6.3. Hotel APIs
+
+#### `GET /api/hotels`
+Lists accommodations with destination, star rating, price range, and facility filters.
+- **Query Parameters**:
+  - `destinationId`, `destinationSlug`
+  - `minPrice`, `maxPrice` (per night)
+  - `starRating` (1 to 5)
+  - `amenities` (comma-separated list, e.g. `amenities=Onsen,WiFi`)
+  - `sortBy` (`pricePerNight`, `starRating`, `name`, `createdAt`), `sortOrder`
+- **Response**: `200 OK` with paginated accommodations.
+
+#### `GET /api/hotels/:idOrSlug`
+Retrieves hotel details with address, amenities, and parent destination.
+
+#### Admin Hotel Operations
+- **`POST /api/hotels`** (Admin only): Creates accommodation. Returns `201 Created`.
+- **`PATCH /api/hotels/:id`** (Admin only): Updates accommodation. Returns `200 OK`.
+- **`DELETE /api/hotels/:id`** (Admin only): Deletes accommodation. Returns `200 OK`.
+
+---
+
+### 6.4. Activity APIs
+
+#### `GET /api/activities`
+Lists excursions and activities with duration, category, and price filters.
+- **Query Parameters**:
+  - `destinationId`, `destinationSlug`, `category`
+  - `minPrice`, `maxPrice`
+  - `minDuration`, `maxDuration` (in hours)
+  - `sortBy` (`price`, `durationHours`, `name`, `createdAt`), `sortOrder`
+- **Response**: `200 OK` with paginated activities.
+
+#### `GET /api/activities/:idOrSlug`
+Retrieves activity details with duration hours, pricing, and destination.
+
+#### Admin Activity Operations
+- **`POST /api/activities`** (Admin only): Creates activity. Returns `201 Created`.
+- **`PATCH /api/activities/:id`** (Admin only): Updates activity. Returns `200 OK`.
+- **`DELETE /api/activities/:id`** (Admin only): Deletes activity. Returns `200 OK`.
+
+---
+
+### 6.5. Reviews & Ratings APIs
+
+#### `GET /api/reviews`
+Lists customer reviews for destinations or tour packages.
+- **Query Parameters**:
+  - `destinationId` (uuid)
+  - `tourPackageId` (uuid)
+  - `rating` (1 to 5)
+  - `isVerifiedBooking` (boolean)
+  - `page`, `pageSize`, `sortBy` (`createdAt`, `rating`), `sortOrder`
+
+#### `GET /api/reviews/stats`
+Calculates aggregated rating metrics and distribution.
+- **Query Parameters**: `destinationId` or `tourPackageId`
+- **Example Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "averageRating": 4.88,
+      "totalReviews": 42,
+      "ratingDistribution": {
+        "1": 0,
+        "2": 1,
+        "3": 2,
+        "4": 9,
+        "5": 30
+      }
+    }
+  }
+  ```
+
+#### `POST /api/reviews`
+Allows authenticated travelers to submit a review for a destination or tour package.
+- **Authentication**: Required (`authenticate`)
+- **Booking Rules**:
+  - The system checks `Booking` and `BookingItem` records for the authenticated user with status `CONFIRMED` or `COMPLETED`.
+  - If a confirmed booking for the target tour (or destination) exists, the review is awarded `isVerifiedBooking: true`.
+  - Prevents duplicate reviews from the same user on the same item (`409 Conflict`).
+  - Automatically recalculates the parent destination or tour package's average `rating` and `reviewCount` in the database.
+- **Request Body**:
+  ```json
+  {
+    "destinationId": "30000000-0000-4000-a000-000000000003",
+    "rating": 5,
+    "title": "Unforgettable Kyoto experience!",
+    "comment": "The sunrise over Arashiyama bamboo forest was breathtaking."
+  }
+  ```
+- **Response**: `201 Created` with created review and verified status badge.
+
+#### `DELETE /api/reviews/:id`
+Deletes review. Restricted to the author of the review or an `ADMIN`. Automatically re-synchronizes the target item's average rating.
+

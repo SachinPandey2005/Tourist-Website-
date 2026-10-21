@@ -127,6 +127,69 @@ export interface TourPackageDto {
   reviewCount: number;
   isPublished: boolean;
   schedules?: TourScheduleDto[];
+  destination?: DestinationDto;
+}
+
+export interface HotelDto {
+  id: string;
+  destinationId: string;
+  name: string;
+  slug: string;
+  description: string;
+  address: string;
+  starRating: number;
+  pricePerNight: string;
+  amenities: string[];
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  destination?: DestinationDto;
+}
+
+export interface ActivityDto {
+  id: string;
+  destinationId: string;
+  name: string;
+  slug: string;
+  description: string;
+  durationHours: number;
+  price: string;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  destination?: DestinationDto;
+}
+
+export interface ReviewUserSummary {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+export interface ReviewDto {
+  id: string;
+  userId: string;
+  destinationId?: string | null;
+  tourPackageId?: string | null;
+  rating: number;
+  title?: string | null;
+  comment: string;
+  isVerifiedBooking: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user?: ReviewUserSummary;
+}
+
+export interface ReviewStatsDto {
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
 }
 
 export interface BookingItemDto {
@@ -246,5 +309,145 @@ export interface UpdateProfileInput {
   name?: string;
   phoneNumber?: string | null;
   avatarUrl?: string | null;
+}
+
+// =========================================================================
+// DISCOVERY INPUT CONTRACTS (PHASE 5)
+// =========================================================================
+
+export interface CreateDestinationInput {
+  title: string;
+  slug?: string;
+  description: string;
+  shortDescription?: string | null;
+  country: string;
+  city?: string | null;
+  location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  category: DestinationCategory;
+  imageUrl: string;
+  galleryImages?: string[];
+  isFeatured?: boolean;
+}
+
+export interface UpdateDestinationInput {
+  title?: string;
+  slug?: string;
+  description?: string;
+  shortDescription?: string | null;
+  country?: string;
+  city?: string | null;
+  location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  category?: DestinationCategory;
+  imageUrl?: string;
+  galleryImages?: string[];
+  isFeatured?: boolean;
+}
+
+export interface CreateTourPackageInput {
+  destinationId: string;
+  title: string;
+  slug?: string;
+  description: string;
+  highlights?: string[];
+  durationDays: number;
+  durationNights?: number;
+  basePrice: number | string;
+  discountPrice?: number | string | null;
+  maxGroupSize?: number;
+  difficulty?: TourDifficulty;
+  featuredImage: string;
+  galleryImages?: string[];
+  isPublished?: boolean;
+}
+
+export interface UpdateTourPackageInput {
+  destinationId?: string;
+  title?: string;
+  slug?: string;
+  description?: string;
+  highlights?: string[];
+  durationDays?: number;
+  durationNights?: number;
+  basePrice?: number | string;
+  discountPrice?: number | string | null;
+  maxGroupSize?: number;
+  difficulty?: TourDifficulty;
+  featuredImage?: string;
+  galleryImages?: string[];
+  isPublished?: boolean;
+}
+
+export interface CreateTourScheduleInput {
+  tourPackageId: string;
+  startDate: string;
+  endDate: string;
+  price: number | string;
+  totalCapacity: number;
+  status?: ScheduleStatus;
+}
+
+export interface UpdateTourScheduleInput {
+  startDate?: string;
+  endDate?: string;
+  price?: number | string;
+  totalCapacity?: number;
+  bookedCapacity?: number;
+  status?: ScheduleStatus;
+}
+
+export interface CreateHotelInput {
+  destinationId: string;
+  name: string;
+  slug?: string;
+  description: string;
+  address: string;
+  starRating?: number;
+  pricePerNight: number | string;
+  amenities?: string[];
+  imageUrl: string;
+}
+
+export interface UpdateHotelInput {
+  destinationId?: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  address?: string;
+  starRating?: number;
+  pricePerNight?: number | string;
+  amenities?: string[];
+  imageUrl?: string;
+}
+
+export interface CreateActivityInput {
+  destinationId: string;
+  name: string;
+  slug?: string;
+  description: string;
+  durationHours: number;
+  price: number | string;
+  imageUrl: string;
+}
+
+export interface UpdateActivityInput {
+  destinationId?: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  durationHours?: number;
+  price?: number | string;
+  imageUrl?: string;
+}
+
+export interface CreateReviewInput {
+  destinationId?: string;
+  tourPackageId?: string;
+  rating: number;
+  title?: string;
+  comment: string;
 }
 
