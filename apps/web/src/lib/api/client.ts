@@ -39,10 +39,13 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
     }
   }
 
-  const defaultHeaders: HeadersInit = {
+  const storedToken = typeof window !== 'undefined' ? localStorage.getItem('voyagevista_token') : null;
+
+  const defaultHeaders: Record<string, string> = {
     'Accept': 'application/json',
     ...(restOptions.body ? { 'Content-Type': 'application/json' } : {}),
-    ...headers,
+    ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}),
+    ...(headers as Record<string, string>),
   };
 
   try {

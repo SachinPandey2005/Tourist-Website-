@@ -20,4 +20,6 @@ export const hotelApi = {
     apiClient.get<PaginatedResult<HotelDto>>('/api/hotels', { params: params as never }),
   getBySlugOrId: (idOrSlug: string) =>
     apiClient.get<HotelDto>(`/api/hotels/${idOrSlug}`),
+  delete: (id: string) =>
+    apiClient.delete<{ message: string }>(`/api/hotels/${id}`),
 };

@@ -20,4 +20,8 @@ export const destinationApi = {
     apiClient.get<DestinationDto & { tours: unknown[]; hotels: unknown[]; activities: unknown[] }>(
       `/api/destinations/${idOrSlug}`
     ),
+  create: (data: unknown) =>
+    apiClient.post<DestinationDto>('/api/destinations', data),
+  delete: (id: string) =>
+    apiClient.delete<{ message: string }>(`/api/destinations/${id}`),
 };

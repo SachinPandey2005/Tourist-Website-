@@ -7,6 +7,8 @@ import { tourRouter } from './tour.routes.js';
 import { hotelRouter } from './hotel.routes.js';
 import { activityRouter } from './activity.routes.js';
 import { reviewRouter } from './review.routes.js';
+import { bookingRouter } from './booking.routes.js';
+import { favoriteRouter } from './favorite.routes.js';
 
 export const apiRouter = Router();
 
@@ -19,3 +21,5 @@ apiRouter.use('/tours', tourRouter);
 apiRouter.use('/hotels', hotelRouter);
 apiRouter.use('/activities', activityRouter);
 apiRouter.use('/reviews', reviewRouter);
+apiRouter.use('/bookings', bookingRouter);
+apiRouter.use('/favorites', favoriteRouter);

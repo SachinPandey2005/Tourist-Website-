@@ -3,7 +3,11 @@ import { PublicLayout } from '../layouts/PublicLayout.js';
 import { AuthLayout } from '../layouts/AuthLayout.js';
 import { DashboardLayout } from '../layouts/DashboardLayout.js';
 
-// Feature Pages
+// Route Guards
+import { ProtectedRoute } from '../components/common/ProtectedRoute.js';
+import { AdminRoute } from '../components/common/AdminRoute.js';
+
+// Public Feature Pages
 import { HomePage } from '../features/home/HomePage.js';
 import { DestinationsPage } from '../features/destinations/DestinationsPage.js';
 import { DestinationDetailPage } from '../features/destinations/DestinationDetailPage.js';
@@ -20,8 +24,22 @@ import { BookingConfirmationPage } from '../features/booking/BookingConfirmation
 import { LoginPage } from '../features/auth/LoginPage.js';
 import { RegisterPage } from '../features/auth/RegisterPage.js';
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage.js';
-import { DashboardPage } from '../features/dashboard/DashboardPage.js';
 import { NotFoundPage } from '../features/common/NotFoundPage.js';
+
+// User Dashboard Pages
+import { DashboardOverviewPage } from '../features/dashboard/DashboardOverviewPage.js';
+import { MyBookingsPage } from '../features/dashboard/MyBookingsPage.js';
+import { FavoritesPage } from '../features/dashboard/FavoritesPage.js';
+import { ProfileSettingsPage } from '../features/dashboard/ProfileSettingsPage.js';
+
+// Admin Dashboard Pages
+import { AdminOverviewPage } from '../features/admin/AdminOverviewPage.js';
+import { AdminBookingsPage } from '../features/admin/AdminBookingsPage.js';
+import { AdminUsersPage } from '../features/admin/AdminUsersPage.js';
+import { AdminPaymentsPage } from '../features/admin/AdminPaymentsPage.js';
+import { AdminInventoryPage } from '../features/admin/AdminInventoryPage.js';
+import { AdminCouponsPage } from '../features/admin/AdminCouponsPage.js';
+import { AdminReviewsPage } from '../features/admin/AdminReviewsPage.js';
 
 export function AppRoutes() {
   return (
@@ -51,13 +69,27 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
 
-      {/* 3. Traveler & Admin Portal Routes */}
-      <Route element={<DashboardLayout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/dashboard/bookings" element={<DashboardPage />} />
-        <Route path="/dashboard/favorites" element={<DashboardPage />} />
-        <Route path="/dashboard/profile" element={<DashboardPage />} />
-        <Route path="/admin" element={<DashboardPage />} />
+      {/* 3. Protected Traveler Portal Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<DashboardOverviewPage />} />
+          <Route path="/dashboard/bookings" element={<MyBookingsPage />} />
+          <Route path="/dashboard/favorites" element={<FavoritesPage />} />
+          <Route path="/dashboard/profile" element={<ProfileSettingsPage />} />
+        </Route>
+      </Route>
+
+      {/* 4. Protected Admin Console Routes */}
+      <Route element={<AdminRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route path="/admin" element={<AdminOverviewPage />} />
+          <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+          <Route path="/admin/inventory" element={<AdminInventoryPage />} />
+          <Route path="/admin/coupons" element={<AdminCouponsPage />} />
+          <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+        </Route>
       </Route>
     </Routes>
   );

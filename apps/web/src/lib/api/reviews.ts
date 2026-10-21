@@ -22,4 +22,8 @@ export const reviewApi = {
     apiClient.get<PaginatedResult<ReviewDto>>('/api/reviews', { params: params as never }),
   getStats: (params: ReviewStatsParams) =>
     apiClient.get<ReviewStatsDto>('/api/reviews/stats', { params: params as never }),
+  create: (data: { destinationId?: string; tourPackageId?: string; rating: number; title?: string; comment: string }) =>
+    apiClient.post<ReviewDto>('/api/reviews', data),
+  delete: (id: string) =>
+    apiClient.delete<{ message: string }>(`/api/reviews/${id}`),
 };

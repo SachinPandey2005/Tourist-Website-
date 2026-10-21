@@ -3,7 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Phone, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button.js';
 import { Input } from '../../components/ui/Input.js';
-import { apiClient, ApiClientError } from '../../lib/api/client.js';
+import { ApiClientError } from '../../lib/api/client.js';
+import { authApi } from '../../lib/api/auth.js';
+import { useAuth } from '../../context/AuthContext.js';
 
 export function RegisterPage() {
   const [name, setName] = useState('');
@@ -13,6 +15,7 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -20,12 +23,13 @@ export function RegisterPage() {
     setErrorMessage(null);
 
     try {
-      await apiClient.post('/api/auth/register', {
+      const data = await authApi.register({
         name,
         email,
         password,
         phoneNumber: phoneNumber || undefined,
       });
+      login(data.token, data.user);
       navigate('/dashboard');
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {

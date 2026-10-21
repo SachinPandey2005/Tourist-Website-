@@ -1,9 +1,11 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button.js';
 import { Input } from '../../components/ui/Input.js';
-import { apiClient, ApiClientError } from '../../lib/api/client.js';
+import { ApiClientError } from '../../lib/api/client.js';
+import { authApi } from '../../lib/api/auth.js';
+import { useAuth } from '../../context/AuthContext.js';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +13,8 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -18,8 +22,10 @@ export function LoginPage() {
     setErrorMessage(null);
 
     try {
-      await apiClient.post('/api/auth/login', { email, password });
-      navigate('/dashboard');
+      const data = await authApi.login({ email, password });
+      login(data.token, data.user);
+      const redirectPath = (location.state as any)?.from?.pathname || (data.user.role === 'ADMIN' ? '/admin' : '/dashboard');
+      navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
         setErrorMessage(err.message);

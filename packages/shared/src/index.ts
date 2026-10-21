@@ -451,3 +451,74 @@ export interface CreateReviewInput {
   comment: string;
 }
 
+// =========================================================================
+// FAVORITES CONTRACTS (PHASE 8)
+// =========================================================================
+
+export interface FavoriteDto {
+  id: string;
+  userId: string;
+  createdAt: string;
+  destination?: {
+    id: string;
+    title: string;
+    slug: string;
+    imageUrl: string;
+    category: DestinationCategory;
+    location: string;
+    rating: number;
+  } | null;
+  tourPackage?: {
+    id: string;
+    title: string;
+    slug: string;
+    featuredImage: string;
+    difficulty: TourDifficulty;
+    durationDays: number;
+    basePrice: string;
+    discountPrice?: string | null;
+  } | null;
+}
+
+// =========================================================================
+// ADMIN DASHBOARD CONTRACTS (PHASE 8)
+// =========================================================================
+
+export interface AdminOverviewStatsDto {
+  totalUsers: number;
+  totalBookings: number;
+  confirmedBookings: number;
+  cancelledBookings: number;
+  activeTours: number;
+  totalDestinations: number;
+  totalReviews: number;
+  totalHotels: number;
+  grossRevenue: string;
+  currency: string;
+  recentBookings: {
+    id: string;
+    bookingReference: string;
+    userName: string;
+    userEmail: string;
+    totalAmount: string;
+    status: BookingStatus;
+    paymentStatus: PaymentStatus;
+    createdAt: string;
+  }[];
+}
+
+export interface CouponDto {
+  id: string;
+  code: string;
+  description?: string | null;
+  discountType: DiscountType;
+  discountValue: string;
+  minBookingAmount?: string | null;
+  maxDiscountAmount?: string | null;
+  maxUses?: number | null;
+  usedCount: number;
+  isActive: boolean;
+  startDate: string;
+  endDate: string;
+}
+

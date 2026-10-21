@@ -21,4 +21,10 @@ export const tourApi = {
     apiClient.get<PaginatedResult<TourPackageDto>>('/api/tours', { params: params as never }),
   getBySlugOrId: (idOrSlug: string) =>
     apiClient.get<TourPackageDto>(`/api/tours/${idOrSlug}`),
+  delete: (id: string) =>
+    apiClient.delete<{ message: string }>(`/api/tours/${id}`),
+  createSchedule: (tourId: string, data: unknown) =>
+    apiClient.post(`/api/tours/${tourId}/schedules`, data),
+  deleteSchedule: (scheduleId: string) =>
+    apiClient.delete<{ message: string }>(`/api/tours/schedules/${scheduleId}`),
 };

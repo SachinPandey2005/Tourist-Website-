@@ -21,4 +21,6 @@ export const activityApi = {
     apiClient.get<PaginatedResult<ActivityDto>>('/api/activities', { params: params as never }),
   getBySlugOrId: (idOrSlug: string) =>
     apiClient.get<ActivityDto>(`/api/activities/${idOrSlug}`),
+  delete: (id: string) =>
+    apiClient.delete<{ message: string }>(`/api/activities/${id}`),
 };
