@@ -3,6 +3,24 @@ import { BookingService } from '../services/booking.service.js';
 import { ApiResponseBuilder } from '../utils/apiResponse.js';
 
 export class BookingController {
+  static async checkAvailability(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await BookingService.checkAvailability(req.body);
+      ApiResponseBuilder.success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async calculateQuote(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await BookingService.calculateQuote(req.body);
+      ApiResponseBuilder.success(res, result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async listMyBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
@@ -46,7 +64,13 @@ export class BookingController {
   static async createBooking(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
-      const booking = await BookingService.createBooking(userId, req.body);
+      const idempotencyHeader = req.headers['idempotency-key'] as string | undefined;
+      const idempotencyKey = req.body?.idempotencyKey || idempotencyHeader;
+
+      const booking = await BookingService.createBooking(userId, {
+        ...req.body,
+        idempotencyKey,
+      });
       ApiResponseBuilder.success(res, booking, 201);
     } catch (err) {
       next(err);

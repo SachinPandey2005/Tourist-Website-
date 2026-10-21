@@ -207,7 +207,7 @@ export function HotelDetailPage() {
               </div>
             </div>
 
-            <Link to={`/booking/confirmation?hotelId=${hotel.id}&name=${encodeURIComponent(hotel.name)}`}>
+            <Link to={`/book?hotelId=${hotel.id}`}>
               <Button variant="primary" size="lg" className="w-full">
                 Reserve Stay
               </Button>

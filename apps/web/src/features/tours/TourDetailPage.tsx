@@ -342,7 +342,7 @@ export function TourDetailPage() {
             </div>
 
             <Link
-              to={`/booking/confirmation?tourId=${tour.id}&scheduleId=${activeSchedule?.id || ''}&title=${encodeURIComponent(tour.title)}`}
+              to={`/book?tourId=${tour.id}&scheduleId=${activeSchedule?.id || ''}`}
             >
               <Button variant="primary" size="lg" className="w-full">
                 Proceed to Reservation

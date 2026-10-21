@@ -3,11 +3,32 @@ import { BookingController } from '../controllers/booking.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.middleware.js';
 import { uuidParamSchema } from '../validators/common.validator.js';
-import { createBookingSchema, listBookingsQuerySchema } from '../validators/booking.validator.js';
+import {
+  createBookingSchema,
+  listBookingsQuerySchema,
+  checkAvailabilitySchema,
+  quoteBookingSchema,
+  cancelBookingSchema,
+} from '../validators/booking.validator.js';
 
 export const bookingRouter = Router();
 
-// All booking routes require authentication
+// Public / Pre-checkout endpoints
+// 1. Check item inventory & departure availability
+bookingRouter.post(
+  '/check-availability',
+  validateRequest({ body: checkAvailabilitySchema }),
+  BookingController.checkAvailability
+);
+
+// 2. Server-authoritative price quote & coupon discount calculation
+bookingRouter.post(
+  '/quote',
+  validateRequest({ body: quoteBookingSchema }),
+  BookingController.calculateQuote
+);
+
+// Protected Booking Management (Requires Authentication)
 bookingRouter.use(authenticate);
 
 // List authenticated user's bookings
@@ -17,6 +38,13 @@ bookingRouter.get(
   BookingController.listMyBookings
 );
 
+// Create a new PENDING booking
+bookingRouter.post(
+  '/',
+  validateRequest({ body: createBookingSchema }),
+  BookingController.createBooking
+);
+
 // Get single booking details (ownership check enforced in service)
 bookingRouter.get(
   '/:id',
@@ -24,16 +52,9 @@ bookingRouter.get(
   BookingController.getBooking
 );
 
-// Create a new booking
-bookingRouter.post(
-  '/',
-  validateRequest({ body: createBookingSchema }),
-  BookingController.createBooking
-);
-
-// Cancel an existing booking
+// Cancel an existing booking according to explicit eligibility rules
 bookingRouter.post(
   '/:id/cancel',
-  validateRequest({ params: uuidParamSchema }),
+  validateRequest({ params: uuidParamSchema, body: cancelBookingSchema }),
   BookingController.cancelBooking
 );

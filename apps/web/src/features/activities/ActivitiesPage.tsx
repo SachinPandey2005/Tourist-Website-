@@ -226,7 +226,7 @@ export function ActivitiesPage() {
                   </span>
                 </div>
 
-                <Link to={`/booking/confirmation?activityId=${act.id}&name=${encodeURIComponent(act.name)}`}>
+                <Link to={`/book?activityId=${act.id}`}>
                   <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
                     Reserve
                   </Button>

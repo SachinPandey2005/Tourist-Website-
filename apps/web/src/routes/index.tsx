@@ -21,6 +21,7 @@ import { AboutPage } from '../features/about/AboutPage.js';
 import { ContactPage } from '../features/contact/ContactPage.js';
 import { FaqPage } from '../features/faq/FaqPage.js';
 import { BookingConfirmationPage } from '../features/booking/BookingConfirmationPage.js';
+import { BookingPage } from '../features/booking/BookingPage.js';
 import { LoginPage } from '../features/auth/LoginPage.js';
 import { RegisterPage } from '../features/auth/RegisterPage.js';
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage.js';
@@ -58,6 +59,8 @@ export function AppRoutes() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/faq" element={<FaqPage />} />
+        <Route path="/book" element={<BookingPage />} />
+        <Route path="/booking" element={<BookingPage />} />
         <Route path="/booking/confirmation" element={<BookingConfirmationPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

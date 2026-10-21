@@ -6,17 +6,32 @@ export const createBookingItemSchema = z.object({
   tourScheduleId: z.string().uuid().optional(),
   hotelId: z.string().uuid().optional(),
   activityId: z.string().uuid().optional(),
-  itemTitle: z.string().min(1, 'Item title is required'),
-  unitPrice: z.number().positive('Unit price must be positive'),
-  quantity: z.number().int().positive().default(1),
-  startDate: z.string().datetime().or(z.date()).optional(),
-  endDate: z.string().datetime().or(z.date()).optional(),
+  quantity: z.number().int().positive('Quantity must be at least 1').default(1),
+  startDate: z.union([z.string(), z.date()]).optional(),
+  endDate: z.union([z.string(), z.date()]).optional(),
+  // unitPrice can be accepted optionally for backwards compatibility, but is strictly ignored/recalculated
+  unitPrice: z.number().positive().optional(),
+  itemTitle: z.string().optional(),
 });
 
 export const createBookingSchema = z.object({
-  items: z.array(createBookingItemSchema).min(1, 'At least one item is required in a booking'),
+  items: z.array(createBookingItemSchema).min(1, 'At least one travel item is required in a booking'),
   specialRequests: z.string().max(1000).optional(),
   couponCode: z.string().max(50).optional(),
+  idempotencyKey: z.string().max(100).optional(),
+});
+
+export const checkAvailabilitySchema = z.object({
+  items: z.array(createBookingItemSchema).min(1, 'At least one item is required to check availability'),
+});
+
+export const quoteBookingSchema = z.object({
+  items: z.array(createBookingItemSchema).min(1, 'At least one item is required for a price quote'),
+  couponCode: z.string().max(50).optional(),
+});
+
+export const cancelBookingSchema = z.object({
+  reason: z.string().max(500).optional(),
 });
 
 export const listBookingsQuerySchema = z.object({

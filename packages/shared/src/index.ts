@@ -225,15 +225,101 @@ export interface BookingDto {
   bookingReference: string;
   userId: string;
   couponId?: string | null;
+  idempotencyKey?: string | null;
   status: BookingStatus;
   subtotal: string;
   discountAmount: string;
   taxAmount: string;
   totalAmount: string;
   currency: string;
+  specialRequests?: string | null;
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
+  isCancellable?: boolean;
   items: BookingItemDto[];
   payments?: PaymentDto[];
   createdAt: string;
+  updatedAt?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export interface CheckAvailabilityItemInput {
+  tourPackageId?: string;
+  tourScheduleId?: string;
+  hotelId?: string;
+  activityId?: string;
+  quantity: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface CheckAvailabilityInput {
+  items: CheckAvailabilityItemInput[];
+}
+
+export interface AvailabilityItemResult {
+  itemType: 'TOUR' | 'HOTEL' | 'ACTIVITY';
+  itemId: string;
+  itemTitle: string;
+  isAvailable: boolean;
+  availableCapacity?: number;
+  requestedQuantity: number;
+  unitPrice: string;
+  totalPrice: string;
+  message: string;
+}
+
+export interface CheckAvailabilityResult {
+  isAvailable: boolean;
+  items: AvailabilityItemResult[];
+}
+
+export interface BookingQuoteInput {
+  items: CheckAvailabilityItemInput[];
+  couponCode?: string;
+}
+
+export interface BookingQuoteItem {
+  tourPackageId?: string | null;
+  tourScheduleId?: string | null;
+  hotelId?: string | null;
+  activityId?: string | null;
+  itemTitle: string;
+  unitPrice: string;
+  quantity: number;
+  totalPrice: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  nights?: number;
+}
+
+export interface BookingQuoteResult {
+  items: BookingQuoteItem[];
+  subtotal: string;
+  discountAmount: string;
+  taxAmount: string;
+  taxRatePercentage: number;
+  totalAmount: string;
+  currency: string;
+  coupon?: {
+    id: string;
+    code: string;
+    discountType: string;
+    discountValue: string;
+    discountApplied: string;
+    description?: string | null;
+  };
+}
+
+export interface CreateBookingRequest {
+  items: CheckAvailabilityItemInput[];
+  specialRequests?: string;
+  couponCode?: string;
+  idempotencyKey?: string;
 }
 
 // =========================================================================
