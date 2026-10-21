@@ -8,6 +8,13 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000), // 15 mins
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100), // 100 requests per window
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters').default('voyagevista_secure_jwt_secret_key_at_least_32_chars'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+  COOKIE_SECRET: z.string().min(16).default('voyagevista_cookie_secret_key_32_chars'),
+  EMAIL_PROVIDER: z.enum(['console', 'smtp', 'sendgrid', 'resend', 'none']).default('console'),
+  APP_URL: z.string().url().default('http://localhost:5173'),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000), // 15 mins
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10), // 10 attempts per window for auth
 });
 
 const parseEnv = () => {

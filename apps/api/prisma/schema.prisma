@@ -18,6 +18,7 @@ enum UserRole {
   ADMIN
   GUIDE
   TOURIST
+  USER
 }
 
 enum DestinationCategory {
@@ -77,16 +78,19 @@ enum DiscountType {
 // =========================================================================
 
 model User {
-  id              String   @id @default(uuid())
-  email           String   @unique
-  passwordHash    String?
-  name            String
-  phoneNumber     String?
-  avatarUrl       String?
-  role            UserRole @default(TOURIST)
-  isEmailVerified Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  passwordHash         String?
+  name                 String
+  phoneNumber          String?
+  avatarUrl            String?
+  role                 UserRole  @default(TOURIST)
+  isEmailVerified      Boolean   @default(false)
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  tokenVersion         Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   // Relationships
   bookings  Booking[] // Preserved with onDelete: Restrict
@@ -96,6 +100,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([passwordResetToken])
   @@map("users")
 }
 

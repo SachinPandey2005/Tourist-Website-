@@ -94,7 +94,30 @@ apps/api/src/
 | `CORS_ORIGIN` | `http://localhost:5173` | Allowed frontend origin for CORS headers |
 | `DATABASE_URL` | *Required* | PostgreSQL connection string |
 | `RATE_LIMIT_WINDOW_MS` | `900000` (15m) | Rate limiting sliding window in milliseconds |
-| `RATE_LIMIT_MAX` | `100` | Maximum requests allowed per IP per window |
+| `RATE_LIMIT_MAX` | `100` | Maximum general requests allowed per IP per window |
+| `JWT_SECRET` | *Required in prod* (`dev-jwt-secret-...`) | Secret key used to sign and verify JWT access tokens |
+| `JWT_EXPIRES_IN` | `7d` | Token expiration lifespan (`15m`, `1h`, `7d`) |
+| `COOKIE_SECRET` | *Required in prod* (`dev-cookie-secret-...`) | Secret key used to sign HTTP-only cookies |
+| `APP_URL` | `http://localhost:5173` | Public frontend URL used to build password reset links |
+| `EMAIL_PROVIDER` | `console` | Email provider strategy (`console`, `smtp`, `resend`, `sendgrid`) |
+| `AUTH_RATE_LIMIT_WINDOW_MS`| `900000` (15m) | Brute-force sliding window for authentication routes |
+| `AUTH_RATE_LIMIT_MAX` | `10` | Maximum login/register attempts before 429 throttling |
+
+---
+
+## 6. Authentication & Security Testing
+
+Run the automated test suite across all packages and services:
+```bash
+# Run all tests in the monorepo
+npm run test
+
+# Run auth-specific tests in the API workspace
+npm run test --workspace=@tourist/api -- tests/auth.test.ts
+
+# Run strict type checking across all packages
+npm run typecheck
+```
 
 ---
 

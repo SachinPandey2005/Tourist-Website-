@@ -43,7 +43,7 @@ export interface HealthCheckResponse {
 // CORE DOMAIN ENUMS
 // =========================================================================
 
-export type UserRole = 'ADMIN' | 'GUIDE' | 'TOURIST';
+export type UserRole = 'ADMIN' | 'GUIDE' | 'TOURIST' | 'USER';
 
 export type DestinationCategory =
   | 'BEACH'
@@ -193,3 +193,58 @@ export interface PaginatedResult<T> {
     totalPages: number;
   };
 }
+
+// =========================================================================
+// AUTHENTICATION & USER CONTRACTS
+// =========================================================================
+
+export interface AuthUserDto {
+  id: string;
+  email: string;
+  name: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  role: UserRole;
+  isEmailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthResponseData {
+  user: AuthUserDto;
+  token: string;
+}
+
+export interface RegisterInput {
+  email: string;
+  password: string;
+  name: string;
+  phoneNumber?: string;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export interface UpdateProfileInput {
+  name?: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+}
+
