@@ -70,31 +70,36 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Platform Links */}
+          {/* Platform & Company Links */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Platform
+              Company & Help
             </h4>
             <ul className="space-y-2 text-xs">
+              <li>
+                <Link to="/about" className="hover:text-teal-300 transition-colors">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-teal-300 transition-colors">
+                  Contact Specialist
+                </Link>
+              </li>
+              <li>
+                <Link to="/faq" className="hover:text-teal-300 transition-colors">
+                  FAQ & Policies
+                </Link>
+              </li>
+              <li>
+                <Link to="/search" className="hover:text-teal-300 transition-colors">
+                  Universal Search
+                </Link>
+              </li>
               <li>
                 <Link to="/dashboard" className="hover:text-teal-300 transition-colors">
                   Traveler Portal
                 </Link>
-              </li>
-              <li>
-                <Link to="/login" className="hover:text-teal-300 transition-colors">
-                  Account Sign In
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" className="hover:text-teal-300 transition-colors">
-                  Register
-                </Link>
-              </li>
-              <li>
-                <a href="/api/health" target="_blank" rel="noreferrer" className="hover:text-teal-300 transition-colors">
-                  System Health API
-                </a>
               </li>
             </ul>
           </div>

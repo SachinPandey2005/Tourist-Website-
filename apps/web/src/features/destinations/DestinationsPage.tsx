@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { MapPin, Star, ArrowRight, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { MapPin, Star, ArrowRight, Search, Compass } from 'lucide-react';
 import { Button } from '../../components/ui/Button.js';
 import { Input } from '../../components/ui/Input.js';
 import { Select } from '../../components/ui/Select.js';
@@ -14,20 +14,51 @@ import { destinationApi } from '../../lib/api/destinations.js';
 import { useApi } from '../../hooks/useApi.js';
 
 export function DestinationsPage() {
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('search') || '';
+  const category = searchParams.get('category') || '';
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const sortBy = searchParams.get('sortBy') || 'createdAt';
 
-  const { data, isLoading, error, refetch } = useApi(
+  const [localSearch, setLocalSearch] = useState(search);
+
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
+
+  const { data, isLoading, error, refetch, execute } = useApi(
     () =>
       destinationApi.list({
         search: search || undefined,
         category: category || undefined,
         page,
         pageSize: 6,
+        sortBy,
       }),
     { immediate: true }
   );
+
+  // Re-fetch whenever query params in URL change
+  useEffect(() => {
+    execute();
+  }, [search, category, page, sortBy, execute]);
+
+  const updateFilters = (newParams: Record<string, string | null>) => {
+    const updated = new URLSearchParams(searchParams);
+    Object.entries(newParams).forEach(([key, val]) => {
+      if (val === null || val === '') {
+        updated.delete(key);
+      } else {
+        updated.set(key, val);
+      }
+    });
+    setSearchParams(updated);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateFilters({ search: localSearch.trim() || null, page: '1' });
+  };
 
   const fallbackItems = [
     {
@@ -81,6 +112,12 @@ export function DestinationsPage() {
   ];
 
   const items = data?.items && data.items.length > 0 ? data.items : fallbackItems;
+  const pagination = data?.pagination || {
+    page: 1,
+    pageSize: 6,
+    totalItems: fallbackItems.length,
+    totalPages: 1,
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full space-y-8">
@@ -96,130 +133,145 @@ export function DestinationsPage() {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="w-full sm:w-80">
+      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <form onSubmit={handleSearchSubmit} className="w-full md:w-80 flex gap-2">
           <Input
             placeholder="Search destination or region..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
             leftIcon={<Search className="w-4 h-4" />}
           />
-        </div>
+          <Button type="submit" variant="secondary" size="md">
+            Search
+          </Button>
+        </form>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <Select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full sm:w-48 text-xs"
+            onChange={(e) => updateFilters({ category: e.target.value || null, page: '1' })}
             options={[
               { value: '', label: 'All Categories' },
               { value: 'CULTURAL', label: 'Cultural' },
               { value: 'MOUNTAIN', label: 'Mountain' },
-              { value: 'BEACH', label: 'Beach & Marine' },
-              { value: 'WILDLIFE', label: 'Wildlife Safari' },
-              { value: 'ADVENTURE', label: 'Adventure' },
+              { value: 'BEACH', label: 'Beach & Coastal' },
+              { value: 'WILDLIFE', label: 'Wildlife' },
             ]}
+            className="w-44"
           />
-          <Button variant="secondary" size="sm" onClick={() => refetch()}>
-            Apply
-          </Button>
-        </div>
-      </div>
 
-      {/* Loading Skeleton */}
-      {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-        </div>
-      )}
+          <Select
+            value={sortBy}
+            onChange={(e) => updateFilters({ sortBy: e.target.value, page: '1' })}
+            options={[
+              { value: 'createdAt', label: 'Newest Additions' },
+              { value: 'title', label: 'Alphabetical' },
+              { value: 'rating', label: 'Top Rated' },
+            ]}
+            className="w-44"
+          />
 
-      {/* Error State */}
-      {!isLoading && error && (
-        <ErrorState message={error.message} onRetry={() => refetch()} />
-      )}
-
-      {/* Empty State */}
-      {!isLoading && !error && items.length === 0 && (
-        <EmptyState
-          title="No Destinations Found"
-          description="Try broadening your category or search term."
-          action={
+          {(search || category) && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => {
-                setSearch('');
-                setCategory('');
-                refetch();
+                setLocalSearch('');
+                setSearchParams(new URLSearchParams());
               }}
             >
               Reset Filters
             </Button>
-          }
-        />
-      )}
+          )}
+        </div>
+      </div>
 
       {/* Catalog Grid */}
-      {!isLoading && !error && items.length > 0 && (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : error && items.length === 0 ? (
+        <ErrorState
+          title="Could Not Load Destinations"
+          message={error.message}
+          onRetry={refetch}
+        />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={<Compass className="w-8 h-8" />}
+          title="No Destinations Found"
+          description="We couldn't find any destinations matching your current filters. Try searching for broader terms."
+          actionLabel="Clear Filters"
+          onAction={() => {
+            setLocalSearch('');
+            setSearchParams(new URLSearchParams());
+          }}
+        />
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => (
-            <Card key={item.id} hoverable className="flex flex-col group">
-              <div className="relative h-56 overflow-hidden rounded-t-2xl">
-                <img
-                  src={item.imageUrl}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                <div className="absolute top-3 left-3">
-                  <Badge variant="brand">{item.category}</Badge>
+            <Card key={item.id} hoverable className="overflow-hidden group flex flex-col justify-between">
+              <div>
+                <div className="h-52 relative overflow-hidden">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                  <div className="absolute top-3 left-3">
+                    <Badge variant="brand">{item.category}</Badge>
+                  </div>
+                  <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-white drop-shadow">
+                    <MapPin className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                    <span>{item.location}</span>
+                  </div>
                 </div>
-                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-white drop-shadow">
-                  <MapPin className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                  <span>{item.location}</span>
-                </div>
-              </div>
 
-              <CardContent className="flex-1 flex flex-col justify-between pt-5 space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-slate-100 group-hover:text-teal-300 transition-colors">
+                <CardContent className="pt-5 space-y-3">
+                  <h3 className="text-lg font-bold text-slate-100 group-hover:text-teal-300 transition-colors line-clamp-1">
                     {item.title}
                   </h3>
                   <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
                     {item.shortDescription || item.description}
                   </p>
+                </CardContent>
+              </div>
+
+              <div className="p-5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
+                  <Star className="w-3.5 h-3.5 fill-amber-400" />
+                  <span>{item.rating ? item.rating.toFixed(2) : '4.90'}</span>
+                  <span className="text-slate-500 font-normal">({item.reviewCount || 42})</span>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs font-bold text-amber-400">
-                    <Star className="w-3.5 h-3.5 fill-amber-400" />
-                    <span>{item.rating ? item.rating.toFixed(2) : '4.90'}</span>
-                    <span className="text-slate-500 font-normal">({item.reviewCount || 42})</span>
-                  </div>
-
-                  <Link to={`/destinations/${item.slug}`}>
-                    <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                      Details
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
+                <Link to={`/destinations/${item.slug}`}>
+                  <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+                    Explore
+                  </Button>
+                </Link>
+              </div>
             </Card>
           ))}
         </div>
       )}
 
       {/* Pagination */}
-      <Pagination
-        currentPage={page}
-        totalPages={data?.pagination?.totalPages || 1}
-        totalItems={data?.pagination?.totalItems || items.length}
-        pageSize={6}
-        onPageChange={(p) => setPage(p)}
-      />
+      {pagination.totalPages > 1 && (
+        <div className="pt-6">
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            onPageChange={(newPage) => updateFilters({ page: newPage.toString() })}
+          />
+        </div>
+      )}
     </div>
   );
 }

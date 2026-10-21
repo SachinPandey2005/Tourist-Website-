@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Compass, Menu, X, User } from 'lucide-react';
+import { Compass, Menu, X, User, Search } from 'lucide-react';
 import { Button } from '../ui/Button.js';
 import { cn } from '../../lib/utils.js';
 
@@ -12,7 +12,7 @@ export function Navbar() {
     { label: 'Tours', to: '/tours' },
     { label: 'Hotels', to: '/hotels' },
     { label: 'Activities', to: '/activities' },
-    { label: 'Dashboard', to: '/dashboard' },
+    { label: 'About', to: '/about' },
   ];
 
   return (
@@ -66,6 +66,13 @@ export function Navbar() {
 
         {/* Right Actions */}
         <div className="hidden md:flex items-center gap-3">
+          <Link
+            to="/search"
+            aria-label="Universal Catalog Search"
+            className="p-2 text-slate-300 hover:text-teal-300 rounded-xl hover:bg-slate-800/60 transition-colors focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            <Search className="w-4 h-4" />
+          </Link>
           <Link to="/login">
             <Button variant="ghost" size="sm" leftIcon={<User className="w-4 h-4" />}>
               Sign In
@@ -110,6 +117,21 @@ export function Navbar() {
                 {link.label}
               </NavLink>
             ))}
+            <NavLink
+              to="/search"
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'px-4 py-3 rounded-xl text-sm font-medium transition-colors flex items-center gap-2',
+                  isActive
+                    ? 'bg-teal-500/10 text-teal-300 border border-teal-500/20'
+                    : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                )
+              }
+            >
+              <Search className="w-4 h-4" />
+              <span>Search Catalog</span>
+            </NavLink>
           </nav>
 
           <div className="pt-4 border-t border-slate-800/80 flex flex-col gap-2">

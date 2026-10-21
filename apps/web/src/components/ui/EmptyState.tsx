@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Compass } from 'lucide-react';
+import { Button } from './Button.js';
 import { cn } from '../../lib/utils.js';
 
 export interface EmptyStateProps {
@@ -7,6 +8,8 @@ export interface EmptyStateProps {
   title?: string;
   description?: string;
   action?: ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
   className?: string;
 }
 
@@ -15,6 +18,8 @@ export function EmptyState({
   title = 'No Results Found',
   description = 'Try adjusting your search criteria, dates, or filters to find what you are looking for.',
   action,
+  actionLabel,
+  onAction,
   className,
 }: EmptyStateProps) {
   return (
@@ -33,7 +38,15 @@ export function EmptyState({
         <p className="text-xs text-slate-400 leading-relaxed">{description}</p>
       </div>
 
-      {action && <div className="pt-2">{action}</div>}
+      {action ? (
+        <div className="pt-2">{action}</div>
+      ) : actionLabel && onAction ? (
+        <div className="pt-2">
+          <Button variant="secondary" size="sm" onClick={onAction}>
+            {actionLabel}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
