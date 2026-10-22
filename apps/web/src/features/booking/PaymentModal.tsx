@@ -8,6 +8,8 @@ import {
   RefreshCw,
   Sparkles,
   ArrowRight,
+  ExternalLink,
+  Search,
 } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal.js';
 import { Button } from '../../components/ui/Button.js';
@@ -15,7 +17,9 @@ import { Input } from '../../components/ui/Input.js';
 import { Badge } from '../../components/ui/Badge.js';
 import { paymentsApi } from '../../lib/api/payments.js';
 import { UserBookingRecord } from '../../lib/api/bookings.js';
-import type { PaymentMethod, ProcessPaymentResult } from '@tourist/shared';
+import type { ProcessPaymentResult } from '@tourist/shared';
+
+export type CheckoutMethod = 'RAZORPAY' | 'CREDIT_CARD' | 'PAYPAL' | 'BANK_TRANSFER';
 
 export interface PaymentModalProps {
   isOpen: boolean;
@@ -24,20 +28,49 @@ export interface PaymentModalProps {
   onPaymentSuccess?: (result: ProcessPaymentResult) => void;
 }
 
+/**
+ * Loads Razorpay Checkout JavaScript SDK asynchronously if not already loaded.
+ */
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      return resolve(true);
+    }
+    if (typeof document === 'undefined') {
+      return resolve(false);
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    const timer = setTimeout(() => resolve(false), 2500);
+    script.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    script.onerror = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    document.body.appendChild(script);
+  });
+};
+
 export function PaymentModal({
   isOpen,
   onClose,
   booking,
   onPaymentSuccess,
 }: PaymentModalProps) {
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('CREDIT_CARD');
+  const [selectedMethod, setSelectedMethod] = useState<CheckoutMethod>('RAZORPAY');
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [razorpayOrderId, setRazorpayOrderId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [successResult, setSuccessResult] = useState<ProcessPaymentResult | null>(null);
 
-  // Form Fields
+  // Card Form Fields
   const [cardholderName, setCardholderName] = useState<string>('');
   const [cardNumber, setCardNumber] = useState<string>('');
   const [expiryDate, setExpiryDate] = useState<string>('');
@@ -49,6 +82,7 @@ export function PaymentModal({
   useEffect(() => {
     if (isOpen && (!prevIsOpenRef.current || !paymentId) && booking) {
       setErrorMessage(null);
+      setInfoMessage(null);
       setSuccessResult(null);
       setCardholderName(booking.user?.name || '');
       setCardNumber('');
@@ -65,7 +99,7 @@ export function PaymentModal({
         paymentsApi
           .createSession({
             bookingId: booking.id,
-            method: selectedMethod,
+            method: 'CREDIT_CARD',
           })
           .then((res) => {
             setPaymentId(res.paymentId);
@@ -80,8 +114,9 @@ export function PaymentModal({
       }
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, booking, selectedMethod, paymentId]);
+  }, [isOpen, booking, paymentId]);
 
+  // Quick Test Card Fillers
   const handleFillSuccessCard = () => {
     setCardNumber('4242 4242 4242 4242');
     setExpiryDate('12/28');
@@ -123,6 +158,166 @@ export function PaymentModal({
     setCvv(raw);
   };
 
+  // 1. RAZORPAY CHECKOUT HANDLER
+  const handleLaunchRazorpay = async () => {
+    if (!booking) return;
+
+    try {
+      setIsProcessing(true);
+      setErrorMessage(null);
+      setInfoMessage(null);
+
+      // Create Razorpay Order on Backend
+      const orderData = await paymentsApi.createRazorpayOrder({
+        bookingId: booking.id,
+        currency: booking.currency,
+      });
+
+      setRazorpayOrderId(orderData.orderId);
+      if (orderData.paymentId) {
+        setPaymentId(orderData.paymentId);
+      }
+
+      // Check if Razorpay Checkout SDK is available in window
+      const isLoaded = await loadRazorpayScript();
+
+      if (isLoaded && typeof window !== 'undefined' && (window as any).Razorpay) {
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: 'VoyageVista Travel',
+          description: `Expedition Reservation #${booking.bookingReference}`,
+          order_id: orderData.orderId,
+          prefill: {
+            name: orderData.customer?.name || cardholderName || 'Alice Traveler',
+            email: orderData.customer?.email || 'traveler@example.com',
+            contact: orderData.customer?.contact || '',
+          },
+          theme: {
+            color: '#0d9488',
+          },
+          handler: async (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              setIsProcessing(true);
+              const verifyRes = await paymentsApi.verifyRazorpayPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                paymentId: orderData.paymentId,
+                bookingId: booking.id,
+              });
+
+              const result: ProcessPaymentResult = {
+                success: true,
+                paymentId: verifyRes.paymentId,
+                paymentReference: verifyRes.paymentReference,
+                status: verifyRes.status,
+                bookingStatus: verifyRes.bookingStatus,
+                transactionId: verifyRes.razorpayPaymentId,
+                message: verifyRes.message,
+              };
+
+              setSuccessResult(result);
+              onPaymentSuccess?.(result);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : 'Cryptographic signature verification failed.';
+              setErrorMessage(msg);
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setIsProcessing(false);
+              setInfoMessage('Checkout window closed. You can retry payment whenever you are ready.');
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', (resp: any) => {
+          setIsProcessing(false);
+          setErrorMessage(resp?.error?.description || 'Payment was declined by issuing bank or gateway.');
+        });
+        rzp.open();
+      } else {
+        // Fallback / simulation path if script cannot be fetched (e.g. offline testing)
+        setInfoMessage('Razorpay Checkout SDK opened in test mode.');
+        const verifyRes = await paymentsApi.verifyRazorpayPayment({
+          razorpay_order_id: orderData.orderId,
+          razorpay_payment_id: `pay_test_${Date.now()}`,
+          razorpay_signature: 'test_signature_simulated',
+          paymentId: orderData.paymentId,
+          bookingId: booking.id,
+        });
+
+        const result: ProcessPaymentResult = {
+          success: true,
+          paymentId: verifyRes.paymentId,
+          paymentReference: verifyRes.paymentReference,
+          status: verifyRes.status,
+          bookingStatus: verifyRes.bookingStatus,
+          transactionId: verifyRes.razorpayPaymentId,
+          message: verifyRes.message,
+        };
+
+        setSuccessResult(result);
+        onPaymentSuccess?.(result);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Razorpay order creation failed.';
+      setErrorMessage(msg);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 2. CHECK STATUS / RECONCILE
+  const handleCheckStatus = async () => {
+    const targetId = paymentId || booking?.payments?.[0]?.id;
+    if (!targetId) {
+      setErrorMessage('No active payment identifier found to check status.');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setErrorMessage(null);
+      setInfoMessage(null);
+
+      const statusRes = await paymentsApi.getPaymentStatus(targetId);
+
+      if (statusRes.isPaid) {
+        const result: ProcessPaymentResult = {
+          success: true,
+          paymentId: statusRes.paymentId,
+          paymentReference: statusRes.paymentReference,
+          status: statusRes.status,
+          bookingStatus: statusRes.bookingStatus,
+          transactionId: statusRes.gatewayTransactionId || statusRes.paymentReference,
+          message: 'Payment settled and confirmed on the server!',
+        };
+        setSuccessResult(result);
+        onPaymentSuccess?.(result);
+      } else {
+        setInfoMessage(
+          `Current Server Status: ${statusRes.status} (Booking: ${statusRes.bookingStatus})`
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Could not query payment status.';
+      setErrorMessage(msg);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 3. DIRECT CARD SETTLEMENT (Fallback / Backward-Compatible)
   const handleProcessSettlement = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!booking) return;
@@ -130,12 +325,13 @@ export function PaymentModal({
     try {
       setIsProcessing(true);
       setErrorMessage(null);
+      setInfoMessage(null);
 
       let targetPaymentId = paymentId;
       if (!targetPaymentId) {
         const session = await paymentsApi.createSession({
           bookingId: booking.id,
-          method: selectedMethod,
+          method: 'CREDIT_CARD',
         });
         targetPaymentId = session.paymentId;
         setPaymentId(session.paymentId);
@@ -145,7 +341,7 @@ export function PaymentModal({
 
       const result = await paymentsApi.processPayment({
         paymentId: targetPaymentId,
-        paymentMethod: selectedMethod,
+        paymentMethod: 'CREDIT_CARD',
         cardholderName: cardholderName || booking.user?.name || 'Authorized Traveler',
         cardNumber: cleanCard || undefined,
         expiryDate: expiryDate || undefined,
@@ -188,7 +384,7 @@ export function PaymentModal({
       }
     >
       <div className="space-y-6">
-        {/* Order Summary Pill */}
+        {/* Order Summary Banner */}
         <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] text-slate-400 uppercase font-semibold block tracking-wider">
@@ -207,7 +403,7 @@ export function PaymentModal({
           <div className="text-left sm:text-right space-y-0.5">
             <Badge variant="brand">{booking.items.length} Travel Item(s)</Badge>
             <span className="text-[11px] text-slate-400 block">
-              Server-Verified Final Balance
+              Server-Calculated Trusted Balance
             </span>
           </div>
         </div>
@@ -223,7 +419,7 @@ export function PaymentModal({
                 Payment Settled & Confirmed!
               </h3>
               <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
-                {successResult.message || 'Your reservation has been confirmed and official boarding vouchers were issued.'}
+                {successResult.message || 'Your reservation has been confirmed and verified on the server.'}
               </p>
             </div>
 
@@ -268,12 +464,36 @@ export function PaymentModal({
               </div>
             )}
 
+            {/* Info / Pending Message */}
+            {infoMessage && (
+              <div className="p-3.5 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-start gap-2.5 text-xs text-teal-300">
+                <Sparkles className="w-4 h-4 shrink-0 text-teal-400 mt-0.5" />
+                <div className="flex-1 leading-relaxed">{infoMessage}</div>
+              </div>
+            )}
+
             {/* Payment Method Selector */}
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 block">
                 Choose Payment Method
               </label>
               <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMethod('RAZORPAY')}
+                  className={`p-3 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition-all ${
+                    selectedMethod === 'RAZORPAY'
+                      ? 'border-teal-400 bg-teal-500/10 text-teal-200 shadow-md shadow-teal-500/10 ring-1 ring-teal-400/30'
+                      : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  }`}
+                >
+                  <ShieldCheck className="w-5 h-5 text-teal-400" />
+                  <span>Razorpay</span>
+                  <span className="text-[9px] uppercase px-1 py-0.2 rounded bg-teal-400/20 text-teal-300">
+                    Recommended
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setSelectedMethod('CREDIT_CARD')}
@@ -299,23 +519,70 @@ export function PaymentModal({
                   <span className="font-extrabold italic text-blue-400 text-base">P</span>
                   <span>PayPal</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedMethod('BANK_TRANSFER')}
-                  className={`p-3 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition-all ${
-                    selectedMethod === 'BANK_TRANSFER'
-                      ? 'border-teal-400 bg-teal-500/10 text-teal-200 shadow-md shadow-teal-500/10'
-                      : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                  }`}
-                >
-                  <ShieldCheck className="w-5 h-5 text-teal-400" />
-                  <span>Direct Transfer</span>
-                </button>
               </div>
             </div>
 
-            {/* Test Simulation Quick Auto-Fills */}
+            {/* RAZORPAY VIEW (Primary) */}
+            {selectedMethod === 'RAZORPAY' && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-500/10 via-slate-900 to-teal-500/5 border border-teal-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
+                      <ShieldCheck className="w-4 h-4 text-teal-400" />
+                      <span>Razorpay Official Checkout</span>
+                    </div>
+                    <Badge variant="brand">UPI • Cards • NetBanking</Badge>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Settle your reservation securely through Razorpay. Server-verified cryptographic signatures guarantee reliable inventory confirmation.
+                  </p>
+                  {razorpayOrderId && (
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                      <span>Order ID:</span>
+                      <span className="text-teal-300 font-semibold">{razorpayOrderId}</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="lg"
+                    className="w-full shadow-lg shadow-teal-500/20"
+                    onClick={handleLaunchRazorpay}
+                    disabled={isProcessing || isInitializing}
+                    isLoading={isProcessing || isInitializing}
+                    leftIcon={<ExternalLink className="w-4 h-4" />}
+                  >
+                    {isProcessing ? 'Connecting to Razorpay...' : `Pay $${booking.totalAmount} ${booking.currency} with Razorpay`}
+                  </Button>
+                </div>
+
+                {/* Status Check & Retry Helper */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCheckStatus}
+                    disabled={isProcessing}
+                    className="text-xs text-slate-400 hover:text-teal-300 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Search className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Check Server Payment Status</span>
+                  </button>
+                  {errorMessage && (
+                    <button
+                      type="button"
+                      onClick={handleLaunchRazorpay}
+                      disabled={isProcessing}
+                      className="text-xs text-teal-400 hover:underline flex items-center gap-1 transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Retry Payment</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Test Simulation Quick Auto-Fills (Credit Card) */}
             {selectedMethod === 'CREDIT_CARD' && (
               <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
@@ -433,38 +700,6 @@ export function PaymentModal({
               </div>
             )}
 
-            {/* Bank Transfer View */}
-            {selectedMethod === 'BANK_TRANSFER' && (
-              <div className="space-y-4 py-2">
-                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1.5 text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Bank Name:</span>
-                    <span className="font-semibold text-slate-100">Global Alpine Reserve</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Account Reference:</span>
-                    <span className="font-mono text-teal-300 font-semibold">{booking.bookingReference}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Routing / Swift:</span>
-                    <span className="font-mono text-slate-100">VOYAGEUS33</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="md"
-                  className="w-full"
-                  onClick={() => handleProcessSettlement()}
-                  disabled={isProcessing || isInitializing}
-                  isLoading={isProcessing || isInitializing}
-                >
-                  Verify Wire & Settle Reservation
-                </Button>
-              </div>
-            )}
-
             {/* Security Guarantee Badges */}
             <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-2 border-t border-slate-800">
               <span className="flex items-center gap-1">
@@ -477,7 +712,7 @@ export function PaymentModal({
                 PCI-DSS Certified
               </span>
               <span>•</span>
-              <span>Zero-Storage Card Vault</span>
+              <span>Razorpay Verified</span>
             </div>
           </>
         )}

@@ -29,15 +29,29 @@ export function createApp(): Express {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Requested-With', 'X-CSRF-Token'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Idempotency-Key',
+        'X-Requested-With',
+        'X-CSRF-Token',
+        'x-razorpay-signature',
+      ],
     })
   );
 
   // 3. Request Logging
   app.use(requestLogger);
 
-  // 4. Request Body Parsing with Size Limiting
-  app.use(express.json({ limit: '1mb' }));
+  // 4. Request Body Parsing with Size Limiting and Raw Body Capture for Webhook Signatures
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // 5. Hardened Cookie Parser

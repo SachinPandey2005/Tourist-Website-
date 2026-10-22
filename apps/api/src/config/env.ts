@@ -15,6 +15,9 @@ const envSchema = z.object({
   APP_URL: z.string().url().default('http://localhost:5173'),
   AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000), // 15 mins
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10), // 10 attempts per window for auth
+  RAZORPAY_KEY_ID: z.string().default('rzp_test_placeholder_key_id'),
+  RAZORPAY_KEY_SECRET: z.string().default('rzp_test_placeholder_key_secret'),
+  RAZORPAY_WEBHOOK_SECRET: z.string().default('rzp_webhook_placeholder_secret'),
 });
 
 const parseEnv = () => {

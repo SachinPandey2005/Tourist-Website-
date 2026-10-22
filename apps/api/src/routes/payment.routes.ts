@@ -7,6 +7,9 @@ import {
   createPaymentSessionSchema,
   processPaymentSchema,
   refundPaymentSchema,
+  createRazorpayOrderSchema,
+  verifyRazorpayPaymentSchema,
+  paymentIdParamSchema,
 } from '../validators/payment.validator.js';
 
 export const paymentRouter = Router();
@@ -17,30 +20,52 @@ paymentRouter.post('/webhook', PaymentController.handleWebhook);
 // Protected Payment Operations (Requires Authentication)
 paymentRouter.use(authenticate);
 
-// 2. Initialize Payment Session / Intent
+// 2. Razorpay: Create Order
+paymentRouter.post(
+  '/create-order',
+  validateRequest({ body: createRazorpayOrderSchema }),
+  PaymentController.createOrder
+);
+
+// 3. Razorpay: Verify Payment Signature
+paymentRouter.post(
+  '/verify',
+  validateRequest({ body: verifyRazorpayPaymentSchema }),
+  PaymentController.verifyPayment
+);
+
+// 4. Razorpay / Payment Reconciliation: Status Check
+paymentRouter.get(
+  '/:paymentId/status',
+  validateRequest({ params: paymentIdParamSchema }),
+  PaymentController.getStatus
+);
+
+// 5. Initialize Payment Session / Intent (Phase 10 direct session)
 paymentRouter.post(
   '/session',
   validateRequest({ body: createPaymentSessionSchema }),
   PaymentController.createSession
 );
 
-// 3. Confirm / Process Direct Settlement
+// 6. Confirm / Process Direct Settlement
 paymentRouter.post(
   '/process',
   validateRequest({ body: processPaymentSchema }),
   PaymentController.processPayment
 );
 
-// 4. Retrieve Payment Details (Ownership Check)
+// 7. Retrieve Payment Details (Ownership Check)
 paymentRouter.get(
   '/:id',
   validateRequest({ params: uuidParamSchema }),
   PaymentController.getPayment
 );
 
-// 5. Issue Refund (Owner or Admin Authorization)
+// 8. Issue Refund (Owner or Admin Authorization)
 paymentRouter.post(
   '/:id/refund',
   validateRequest({ params: uuidParamSchema, body: refundPaymentSchema }),
   PaymentController.refundPayment
 );
+

@@ -270,6 +270,62 @@ export interface PaymentWebhookPayload {
   timestamp: string;
 }
 
+// Razorpay Payment Contracts
+export interface CreateRazorpayOrderInput {
+  bookingId: string;
+  currency?: string;
+}
+
+export interface RazorpayOrderResult {
+  orderId: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  bookingId: string;
+  bookingReference: string;
+  customer: {
+    name: string;
+    email: string;
+    contact?: string;
+  };
+}
+
+export interface VerifyRazorpayPaymentInput {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+  paymentId?: string;
+  bookingId?: string;
+}
+
+export interface VerifyRazorpayPaymentResult {
+  success: boolean;
+  paymentId: string;
+  paymentReference: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  status: PaymentStatus;
+  bookingStatus: BookingStatus;
+  message: string;
+}
+
+export interface PaymentStatusResult {
+  paymentId: string;
+  paymentReference: string;
+  gatewayTransactionId?: string | null;
+  status: PaymentStatus;
+  amount: string;
+  currency: string;
+  bookingId: string;
+  bookingStatus: BookingStatus;
+  bookingReference: string;
+  isPaid: boolean;
+  isCancellable: boolean;
+  createdAt: string;
+  paidAt?: string | null;
+}
+
 export interface BookingDto {
   id: string;
   bookingReference: string;

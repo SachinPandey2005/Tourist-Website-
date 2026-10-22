@@ -397,6 +397,92 @@ Phase 10 introduces a secure payment processing and settlement subsystem that co
 
 ### 4.2 Endpoints Reference
 
+#### `POST /api/payments/create-order`
+Creates a verified Razorpay order with server-calculated amounts in currency subunits (e.g. cents/paise).
+- **Authentication**: Required (`authenticate`)
+- **Request Body**:
+  ```json
+  {
+    "bookingId": "40000000-0000-4000-a000-000000000004",
+    "currency": "USD"
+  }
+  ```
+- **Response (`201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "orderId": "order_OG9234j2ks",
+      "paymentId": "50000000-0000-4000-a000-000000000005",
+      "amount": 132000,
+      "currency": "USD",
+      "keyId": "rzp_test_your_key_id",
+      "bookingId": "40000000-0000-4000-a000-000000000004",
+      "bookingReference": "VV-2026-999",
+      "customer": {
+        "name": "Alice Traveler",
+        "email": "alice@example.com",
+        "contact": "+15550001"
+      }
+    }
+  }
+  ```
+
+#### `POST /api/payments/verify`
+Cryptographically verifies the Razorpay payment HMAC SHA256 signature and atomically transitions Payment to `SUCCEEDED` and Booking to `CONFIRMED`.
+- **Authentication**: Required (`authenticate`)
+- **Request Body**:
+  ```json
+  {
+    "razorpay_order_id": "order_OG9234j2ks",
+    "razorpay_payment_id": "pay_OG9281ks91",
+    "razorpay_signature": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "paymentId": "50000000-0000-4000-a000-000000000005",
+    "bookingId": "40000000-0000-4000-a000-000000000004"
+  }
+  ```
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "success": true,
+      "paymentId": "50000000-0000-4000-a000-000000000005",
+      "paymentReference": "order_OG9234j2ks",
+      "razorpayOrderId": "order_OG9234j2ks",
+      "razorpayPaymentId": "pay_OG9281ks91",
+      "status": "SUCCEEDED",
+      "bookingStatus": "CONFIRMED",
+      "message": "Payment verified and booking confirmed successfully."
+    }
+  }
+  ```
+
+#### `GET /api/payments/:paymentId/status`
+Returns real-time payment settlement and booking confirmation state for reconciliation.
+- **Authentication**: Required (`authenticate`). Allowed for booking owner or platform `ADMIN`.
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "paymentId": "50000000-0000-4000-a000-000000000005",
+      "paymentReference": "order_OG9234j2ks",
+      "gatewayTransactionId": "pay_OG9281ks91",
+      "status": "SUCCEEDED",
+      "amount": "1320.00",
+      "currency": "USD",
+      "bookingId": "40000000-0000-4000-a000-000000000004",
+      "bookingStatus": "CONFIRMED",
+      "bookingReference": "VV-2026-999",
+      "isPaid": true,
+      "isCancellable": false,
+      "createdAt": "2026-10-22T10:00:00.000Z",
+      "paidAt": "2026-10-22T10:05:00.000Z"
+    }
+  }
+  ```
+
 #### `POST /api/payments/session`
 Initializes a payment intent / checkout session for a pending booking.
 - **Authentication**: Required (`authenticate`)

@@ -85,7 +85,7 @@ describe('Phase 10 Frontend: Payment Processing & Settlement Integration Tests',
   };
 
   describe('1. PaymentModal Component', () => {
-    it('renders amount due, booking reference, and test auto-fill buttons', () => {
+    it('renders amount due, booking reference, and Razorpay checkout option by default', () => {
       render(
         <PaymentModal
           isOpen={true}
@@ -98,8 +98,125 @@ describe('Phase 10 Frontend: Payment Processing & Settlement Integration Tests',
       expect(screen.getByText('VV-PAY-2026-999')).toBeInTheDocument();
       expect(screen.getByText('$1320.00')).toBeInTheDocument();
       expect(screen.getByText('USD')).toBeInTheDocument();
+      expect(screen.getByText('Razorpay Official Checkout')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Pay \$1320\.00 USD with Razorpay/i })
+      ).toBeInTheDocument();
+
+      // Switch to Credit Card method tab
+      const creditCardTab = screen.getByRole('button', { name: /credit card/i });
+      fireEvent.click(creditCardTab);
+
       expect(screen.getByText('✓ Success Card (...4242)')).toBeInTheDocument();
       expect(screen.getByText('✕ Decline Card (...0002)')).toBeInTheDocument();
+    });
+
+    it('processes Razorpay checkout flow with order creation and verification', async () => {
+      const onPaymentSuccess = vi.fn();
+      vi.spyOn(paymentsApi, 'createRazorpayOrder').mockResolvedValue({
+        orderId: 'order_test_rzp_123',
+        paymentId: 'payment-pending-01',
+        amount: 132000,
+        currency: 'USD',
+        keyId: 'rzp_test_mock_key',
+        bookingId: mockPendingBooking.id,
+        bookingReference: mockPendingBooking.bookingReference,
+        customer: {
+          name: mockUser.name,
+          email: mockUser.email,
+        },
+      });
+
+      vi.spyOn(paymentsApi, 'verifyRazorpayPayment').mockResolvedValue({
+        success: true,
+        paymentId: 'payment-pending-01',
+        paymentReference: 'order_test_rzp_123',
+        razorpayOrderId: 'order_test_rzp_123',
+        razorpayPaymentId: 'pay_test_signature_simulated',
+        status: 'SUCCEEDED',
+        bookingStatus: 'CONFIRMED',
+        message: 'Payment verified and booking confirmed successfully.',
+      });
+
+      // Mock window.Razorpay SDK
+      (window as any).Razorpay = vi.fn().mockImplementation((options: any) => ({
+        open: vi.fn().mockImplementation(() => {
+          options.handler({
+            razorpay_order_id: options.order_id,
+            razorpay_payment_id: 'pay_test_signature_simulated',
+            razorpay_signature: 'valid_mock_signature_hex',
+          });
+        }),
+        on: vi.fn(),
+      }));
+
+      render(
+        <PaymentModal
+          isOpen={true}
+          onClose={() => {}}
+          booking={mockPendingBooking}
+          onPaymentSuccess={onPaymentSuccess}
+        />
+      );
+
+      const payRazorpayBtn = screen.getByRole('button', {
+        name: /Pay \$1320\.00 USD with Razorpay/i,
+      });
+
+      await act(async () => {
+        fireEvent.click(payRazorpayBtn);
+      });
+
+      expect(paymentsApi.createRazorpayOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingId: mockPendingBooking.id,
+          currency: 'USD',
+        })
+      );
+      expect(paymentsApi.verifyRazorpayPayment).toHaveBeenCalled();
+      expect(screen.getByText('Payment Settled & Confirmed!')).toBeInTheDocument();
+      expect(onPaymentSuccess).toHaveBeenCalled();
+    });
+
+    it('checks and reconciles payment status from server', async () => {
+      const onPaymentSuccess = vi.fn();
+      vi.spyOn(paymentsApi, 'getPaymentStatus').mockResolvedValue({
+        paymentId: 'payment-pending-01',
+        paymentReference: 'order_test_reconcile_999',
+        gatewayTransactionId: 'pay_reconcile_captured_111',
+        status: 'SUCCEEDED',
+        amount: '1320.00',
+        currency: 'USD',
+        bookingId: mockPendingBooking.id,
+        bookingStatus: 'CONFIRMED',
+        bookingReference: mockPendingBooking.bookingReference,
+        isPaid: true,
+        isCancellable: false,
+        createdAt: new Date().toISOString(),
+        paidAt: new Date().toISOString(),
+      });
+
+      render(
+        <PaymentModal
+          isOpen={true}
+          onClose={() => {}}
+          booking={mockPendingBooking}
+          onPaymentSuccess={onPaymentSuccess}
+        />
+      );
+
+      const checkStatusBtn = screen.getByRole('button', {
+        name: /Check Server Payment Status/i,
+      });
+
+      await act(async () => {
+        fireEvent.click(checkStatusBtn);
+      });
+
+      expect(paymentsApi.getPaymentStatus).toHaveBeenCalledWith('payment-pending-01');
+      expect(screen.getByText('Payment Settled & Confirmed!')).toBeInTheDocument();
+      expect(screen.getByText('pay_reconcile_captured_111')).toBeInTheDocument();
+      expect(onPaymentSuccess).toHaveBeenCalled();
     });
 
     it('auto-fills test card and settles payment successfully with receipt', async () => {
@@ -122,6 +239,10 @@ describe('Phase 10 Frontend: Payment Processing & Settlement Integration Tests',
           onPaymentSuccess={onPaymentSuccess}
         />
       );
+
+      // Select Credit Card method
+      const creditCardTab = screen.getByRole('button', { name: /credit card/i });
+      fireEvent.click(creditCardTab);
 
       // Click auto-fill test success card
       const autoFillSuccess = screen.getByText('✓ Success Card (...4242)');
@@ -164,6 +285,10 @@ describe('Phase 10 Frontend: Payment Processing & Settlement Integration Tests',
           booking={mockPendingBooking}
         />
       );
+
+      // Select Credit Card method
+      const creditCardTab = screen.getByRole('button', { name: /credit card/i });
+      fireEvent.click(creditCardTab);
 
       // Click auto-fill decline card
       const autoFillDecline = screen.getByText('✕ Decline Card (...0002)');
@@ -226,6 +351,10 @@ describe('Phase 10 Frontend: Payment Processing & Settlement Integration Tests',
       });
 
       expect(screen.getByText('Secure Checkout & Settlement')).toBeInTheDocument();
+
+      // Switch to Credit Card method tab
+      const creditCardTab = screen.getByRole('button', { name: /credit card/i });
+      fireEvent.click(creditCardTab);
 
       // Fill success card and submit
       fireEvent.click(screen.getByText('✓ Success Card (...4242)'));

@@ -5,6 +5,11 @@ import type {
   PaymentSessionResult,
   ProcessPaymentInput,
   ProcessPaymentResult,
+  CreateRazorpayOrderInput,
+  RazorpayOrderResult,
+  VerifyRazorpayPaymentInput,
+  VerifyRazorpayPaymentResult,
+  PaymentStatusResult,
 } from '@tourist/shared';
 
 export interface RefundPaymentInput {
@@ -12,6 +17,29 @@ export interface RefundPaymentInput {
 }
 
 export const paymentsApi = {
+  /**
+   * RAZORPAY: Creates a Razorpay Order and stages payment record on the server.
+   */
+  createRazorpayOrder: async (payload: CreateRazorpayOrderInput): Promise<RazorpayOrderResult> => {
+    return apiClient.post<RazorpayOrderResult>('/api/payments/create-order', payload);
+  },
+
+  /**
+   * RAZORPAY: Submits frontend Razorpay checkout response for backend cryptographic signature verification.
+   */
+  verifyRazorpayPayment: async (
+    payload: VerifyRazorpayPaymentInput
+  ): Promise<VerifyRazorpayPaymentResult> => {
+    return apiClient.post<VerifyRazorpayPaymentResult>('/api/payments/verify', payload);
+  },
+
+  /**
+   * RAZORPAY: Queries real-time server payment and reconciliation status.
+   */
+  getPaymentStatus: async (paymentId: string): Promise<PaymentStatusResult> => {
+    return apiClient.get<PaymentStatusResult>(`/api/payments/${paymentId}/status`);
+  },
+
   /**
    * Initializes a secure checkout payment session for a pending booking.
    */
@@ -40,3 +68,4 @@ export const paymentsApi = {
     return apiClient.post<PaymentDto>(`/api/payments/${id}/refund`, payload || {});
   },
 };
+
