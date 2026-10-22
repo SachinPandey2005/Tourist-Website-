@@ -9,6 +9,7 @@ import { activityRouter } from './activity.routes.js';
 import { reviewRouter } from './review.routes.js';
 import { bookingRouter } from './booking.routes.js';
 import { favoriteRouter } from './favorite.routes.js';
+import { paymentRouter } from './payment.routes.js';
 
 export const apiRouter = Router();
 
@@ -23,3 +24,5 @@ apiRouter.use('/activities', activityRouter);
 apiRouter.use('/reviews', reviewRouter);
 apiRouter.use('/bookings', bookingRouter);
 apiRouter.use('/favorites', favoriteRouter);
+apiRouter.use('/payments', paymentRouter);
+

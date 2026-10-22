@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   Compass,
+  CreditCard,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button.js';
@@ -19,6 +20,7 @@ import { EmptyState } from '../../components/ui/EmptyState.js';
 import { ErrorState } from '../../components/ui/ErrorState.js';
 import { bookingsApi, UserBookingRecord } from '../../lib/api/bookings.js';
 import { reviewApi } from '../../lib/api/reviews.js';
+import { PaymentModal } from '../booking/PaymentModal.js';
 import { BookingStatus } from '@tourist/shared';
 
 type BookingTab = 'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
@@ -35,6 +37,10 @@ export function MyBookingsPage() {
   // Modal States
   const [selectedBooking, setSelectedBooking] = useState<UserBookingRecord | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
+
+  // Payment States
+  const [bookingToPay, setBookingToPay] = useState<UserBookingRecord | null>(null);
+  const [isPaymentOpen, setIsPaymentOpen] = useState<boolean>(false);
 
   // Cancellation States
   const [bookingToCancel, setBookingToCancel] = useState<UserBookingRecord | null>(null);
@@ -336,6 +342,21 @@ export function MyBookingsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {booking.status === 'PENDING' && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<CreditCard className="w-3.5 h-3.5" />}
+                        className="shadow-sm shadow-teal-500/20"
+                        onClick={() => {
+                          setBookingToPay(booking);
+                          setIsPaymentOpen(true);
+                        }}
+                      >
+                        Pay Now
+                      </Button>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -578,6 +599,19 @@ export function MyBookingsPage() {
           )}
         </Modal>
       )}
+
+      {/* Payment Settlement Modal */}
+      <PaymentModal
+        isOpen={isPaymentOpen}
+        onClose={() => {
+          setIsPaymentOpen(false);
+          setBookingToPay(null);
+        }}
+        booking={bookingToPay}
+        onPaymentSuccess={() => {
+          fetchBookings();
+        }}
+      />
     </div>
   );
 }

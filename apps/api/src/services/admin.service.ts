@@ -1,4 +1,4 @@
-import { Prisma, BookingStatus, PaymentStatus, UserRole, DiscountType } from '@prisma/client';
+import { Prisma, BookingStatus, PaymentStatus, UserRole, DiscountType, ScheduleStatus } from '@prisma/client';
 import { prisma } from '../config/database.js';
 import { AppError } from '../utils/appError.js';
 import { parsePaginationParams, formatPaginatedResult } from '../utils/pagination.js';
@@ -312,27 +312,75 @@ export class AdminService {
   }
 
   /**
-   * Issues a refund for a payment record and updates the status to REFUNDED.
+   * Issues a refund for a payment record, releases inventory capacity, and cancels booking.
    */
   static async refundPayment(paymentId: string) {
-    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        booking: {
+          include: { items: true, user: true },
+        },
+        user: true,
+      },
+    });
+
     if (!payment) throw AppError.notFound(`Payment '${paymentId}' not found.`);
 
     if (payment.status === PaymentStatus.REFUNDED) {
       throw AppError.badRequest('This payment has already been refunded.');
     }
 
-    const updated = await prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: PaymentStatus.REFUNDED },
-    });
+    return await prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: PaymentStatus.REFUNDED,
+          gatewayResponse: 'Refunded by operator / admin intervention',
+        },
+      });
 
-    return {
-      id: updated.id,
-      paymentReference: updated.paymentReference,
-      status: updated.status,
-      message: 'Payment has been successfully refunded.',
-    };
+      if (payment.booking) {
+        await tx.booking.update({
+          where: { id: payment.booking.id },
+          data: {
+            status: BookingStatus.CANCELLED,
+            cancellationReason: 'Administrator issued full payment refund',
+            cancelledAt: new Date(),
+          },
+        });
+
+        // Release schedule seats
+        for (const item of payment.booking.items) {
+          if (item.tourScheduleId) {
+            const schedule = await tx.tourSchedule.findUnique({
+              where: { id: item.tourScheduleId },
+            });
+            if (schedule) {
+              const newBooked = Math.max(0, schedule.bookedCapacity - item.quantity);
+              await tx.tourSchedule.update({
+                where: { id: item.tourScheduleId },
+                data: {
+                  bookedCapacity: newBooked,
+                  status:
+                    schedule.status === ScheduleStatus.SOLD_OUT ||
+                    schedule.status === ScheduleStatus.ALMOST_FULL
+                      ? ScheduleStatus.AVAILABLE
+                      : schedule.status,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      return {
+        id: updated.id,
+        paymentReference: updated.paymentReference,
+        status: updated.status,
+        message: 'Payment has been successfully refunded and inventory capacity restored.',
+      };
+    });
   }
 
   /**

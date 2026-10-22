@@ -216,8 +216,58 @@ export interface PaymentDto {
   currency: string;
   status: PaymentStatus;
   method: PaymentMethod;
+  gatewayTransactionId?: string | null;
   paidAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreatePaymentSessionInput {
+  bookingId: string;
+  method?: PaymentMethod;
+}
+
+export interface PaymentSessionResult {
+  paymentId: string;
+  paymentReference: string;
+  clientSecret?: string;
+  amount: string;
+  currency: string;
+  status: PaymentStatus;
+  bookingId: string;
+  bookingReference: string;
+}
+
+export interface ProcessPaymentInput {
+  paymentId: string;
+  paymentMethod: PaymentMethod;
+  cardholderName?: string;
+  cardNumber?: string;
+  expiryDate?: string;
+  cvv?: string;
+}
+
+export interface ProcessPaymentResult {
+  success: boolean;
+  paymentId: string;
+  paymentReference: string;
+  status: PaymentStatus;
+  bookingStatus: BookingStatus;
+  transactionId: string;
+  message: string;
+}
+
+export interface PaymentWebhookPayload {
+  event: 'payment_intent.succeeded' | 'payment_intent.payment_failed' | 'charge.refunded' | string;
+  data: {
+    paymentReference: string;
+    gatewayTransactionId: string;
+    amount?: string;
+    currency?: string;
+    status: string;
+    reason?: string;
+  };
+  timestamp: string;
 }
 
 export interface BookingDto {

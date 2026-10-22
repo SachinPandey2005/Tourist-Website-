@@ -376,5 +376,141 @@ Allows authenticated travelers to submit a review for a destination or tour pack
 - **Response**: `201 Created` with created review and verified status badge.
 
 #### `DELETE /api/reviews/:id`
-Deletes review. Restricted to the author of the review or an `ADMIN`. Automatically re-synchronizes the target item's average rating.
+Allows review deletion. Restricted to the author of the review or an `ADMIN`. Automatically re-synchronizes the target item's average rating.
+
+---
+
+## 4. Payment Processing & Settlement APIs (Phase 10)
+
+Phase 10 introduces a secure payment processing and settlement subsystem that coordinates between the inventory engine, gateway transaction lifecycle, and notifications.
+
+### 4.1 Payment Lifecycle & State Machine Transitions
+
+| Action / Event | Previous Payment Status | New Payment Status | Coupled Booking Status | Inventory / Schedule Action | Notification Dispatched |
+|---|---|---|---|---|---|
+| **Initialize Session** | None / `PENDING` | `PENDING` | `PENDING` | Retains locked reservation hold | None |
+| **Settlement Succeeded** | `PENDING` | `SUCCEEDED` | `CONFIRMED` | Locked capacity confirmed | `Booking Confirmed & Boarding Voucher` |
+| **Settlement Failed / Card Declined** | `PENDING` | `FAILED` | `PENDING` | Retains reservation hold until expiry | `Payment Failed Alert` |
+| **Payment Refunded** | `SUCCEEDED` | `REFUNDED` | `CANCELLED` | Atomically releases booked seats back to `AVAILABLE` | `Booking Cancellation & Refund Confirmed` |
+
+---
+
+### 4.2 Endpoints Reference
+
+#### `POST /api/payments/session`
+Initializes a payment intent / checkout session for a pending booking.
+- **Authentication**: Required (`authenticate`)
+- **Request Body**:
+  ```json
+  {
+    "bookingId": "40000000-0000-4000-a000-000000000004",
+    "method": "CREDIT_CARD"
+  }
+  ```
+- **Response (`200 OK` / `201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "paymentId": "50000000-0000-4000-a000-000000000005",
+      "paymentReference": "PAY-2026-ABC123",
+      "clientSecret": "pi_sec_mock_4000000000004_secret",
+      "amount": "1320.00",
+      "currency": "USD",
+      "status": "PENDING",
+      "bookingId": "40000000-0000-4000-a000-000000000004",
+      "bookingReference": "VV-2026-999"
+    }
+  }
+  ```
+
+#### `POST /api/payments/process`
+Directly processes credit card, PayPal, or bank transfer settlement.
+- **Authentication**: Required (`authenticate`)
+- **Card Decline Simulation**: Card numbers ending in `0002` or `0000` simulate issuing bank declines without external network dependencies.
+- **Request Body**:
+  ```json
+  {
+    "paymentId": "50000000-0000-4000-a000-000000000005",
+    "paymentMethod": "CREDIT_CARD",
+    "cardholderName": "Alice Traveler",
+    "cardNumber": "4242424242424242",
+    "expiryDate": "12/28",
+    "cvv": "123"
+  }
+  ```
+- **Success Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "success": true,
+      "paymentId": "50000000-0000-4000-a000-000000000005",
+      "paymentReference": "PAY-2026-ABC123",
+      "status": "SUCCEEDED",
+      "bookingStatus": "CONFIRMED",
+      "transactionId": "txn_mock_8819283",
+      "message": "Payment verified and settled successfully."
+    }
+  }
+  ```
+
+#### `POST /api/payments/webhook`
+Asynchronous payment gateway callback endpoint supporting webhook signature verification and idempotent replay protection.
+- **Authentication**: Public endpoint (validated via `x-webhook-signature` or payload signature token)
+- **Idempotency**: Duplicate delivery of `payment_intent.succeeded` returns `already_succeeded_idempotent` without double-crediting or duplicate voucher dispatch.
+- **Request Body**:
+  ```json
+  {
+    "event": "payment_intent.succeeded",
+    "data": {
+      "paymentReference": "PAY-2026-ABC123",
+      "gatewayTransactionId": "wh_txn_live_9981",
+      "amount": "1320.00",
+      "currency": "USD",
+      "status": "succeeded"
+    },
+    "timestamp": "2026-10-22T12:00:00.000Z"
+  }
+  ```
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "received": true,
+      "paymentReference": "PAY-2026-ABC123",
+      "bookingStatus": "CONFIRMED"
+    }
+  }
+  ```
+
+#### `GET /api/payments/:id`
+Retrieves detailed payment transaction record.
+- **Authentication**: Required (`authenticate`). Restricted to the booking owner or platform `ADMIN`.
+- **Response (`200 OK`)**: Returns `PaymentDto`.
+
+#### `POST /api/payments/:id/refund`
+Issues a full payment refund, atomically transitions booking to `CANCELLED`, and releases tour schedule capacity back to availability.
+- **Authentication**: Required (`authenticate`). Allowed for booking owner within cancellation policy or platform `ADMIN`.
+- **Request Body**:
+  ```json
+  {
+    "reason": "Severe weather cancellation refund"
+  }
+  ```
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": "50000000-0000-4000-a000-000000000005",
+      "paymentReference": "PAY-2026-ABC123",
+      "status": "REFUNDED",
+      "amount": "1320.00",
+      "currency": "USD"
+    }
+  }
+  ```
+
 

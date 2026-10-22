@@ -9,6 +9,7 @@ import {
   Users,
   AlertCircle,
   XCircle,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button.js';
 import { Card } from '../../components/ui/Card.js';
@@ -16,6 +17,8 @@ import { Badge } from '../../components/ui/Badge.js';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton.js';
 import { bookingsApi, UserBookingRecord } from '../../lib/api/bookings.js';
+import { PaymentModal } from './PaymentModal.js';
+import { ProcessPaymentResult } from '@tourist/shared';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
 
 export function BookingConfirmationPage() {
@@ -29,6 +32,9 @@ export function BookingConfirmationPage() {
   const [booking, setBooking] = useState<UserBookingRecord | null>(initialBooking || null);
   const [isLoading, setIsLoading] = useState<boolean>(!initialBooking && Boolean(bookingId));
   const [error, setError] = useState<string | null>(null);
+
+  // Payment States
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
 
   // Cancellation States
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState<boolean>(false);
@@ -53,6 +59,37 @@ export function BookingConfirmationPage() {
         });
     }
   }, [bookingId, initialBooking]);
+
+  const handlePaymentSuccess = (result: ProcessPaymentResult) => {
+    if (booking) {
+      setBooking((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: result.bookingStatus,
+          payments: [
+            {
+              id: result.paymentId,
+              paymentReference: result.paymentReference,
+              amount: prev.totalAmount,
+              currency: prev.currency,
+              status: result.status,
+              method: 'CREDIT_CARD',
+              paidAt: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+            },
+            ...prev.payments,
+          ],
+        };
+      });
+      bookingsApi
+        .getBookingDetails(booking.id)
+        .then((fresh) => {
+          setBooking(fresh);
+        })
+        .catch(() => {});
+    }
+  };
 
   const handleCancelBooking = async () => {
     if (!booking) return;
@@ -177,19 +214,23 @@ export function BookingConfirmationPage() {
             ? 'BOOKING CANCELLED'
             : isPending
             ? 'PENDING RESERVATION CREATED'
-            : 'CONFIRMED BOOKING'}
+            : 'CONFIRMED & SETTLED'}
         </Badge>
 
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-100">
           {isCancelled
             ? 'Reservation Cancelled'
-            : 'Inventory Hold Successfully Created'}
+            : isPending
+            ? 'Inventory Hold Successfully Created'
+            : 'Booking Confirmed & Boarding Voucher Ready!'}
         </h1>
 
         <p className="text-sm text-slate-400 max-w-xl mx-auto">
           {isCancelled
             ? 'Your booking has been cancelled and any reserved seats have been released back to availability.'
-            : 'Your booking has been created on the server with locked inventory. Awaiting Phase 10 payment processing.'}
+            : isPending
+            ? 'Your booking has been created on the server with locked inventory. Awaiting Phase 10 payment processing and settlement.'
+            : 'Your payment was authorized and settled successfully. Your travel package has been secured.'}
         </p>
       </div>
 
@@ -235,16 +276,28 @@ export function BookingConfirmationPage() {
           </div>
         </div>
 
-        {/* Phase 10 Payment Preparation Notice */}
+        {/* Phase 10 Interactive Settlement Callout */}
         {isPending && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
-              <Clock className="w-4 h-4 shrink-0" />
-              <span>Phase 9 Complete: Booking Created (Pending Payment Integration in Phase 10)</span>
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-teal-500/10 via-slate-900 to-teal-500/5 border border-teal-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg shadow-teal-500/5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-teal-300">
+                <CreditCard className="w-4 h-4 text-teal-400" />
+                <span>Payment Settlement Required</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-lg">
+                Your inventory is locked. Settle the balance of <strong className="text-teal-300">${booking.totalAmount} {booking.currency}</strong> to confirm your travel voucher and receive boarding confirmation.
+              </p>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Your inventory hold is guaranteed. As specified in the Phase 9 architecture, bookings are maintained in <strong>PENDING</strong> status independently from payment status. In Phase 10, the secure payment gateway (Stripe/PayPal) will settle the balance of {booking.currency} {booking.totalAmount}.
-            </p>
+
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="shadow-lg shadow-teal-500/20 whitespace-nowrap"
+              leftIcon={<CreditCard className="w-4 h-4" />}
+            >
+              Pay Now (${booking.totalAmount} {booking.currency})
+            </Button>
           </div>
         )}
 
@@ -372,19 +425,30 @@ export function BookingConfirmationPage() {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            {isPending && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setIsPaymentModalOpen(true)}
+                className="w-full sm:w-auto shadow-lg shadow-teal-500/20"
+                leftIcon={<CreditCard className="w-4 h-4" />}
+              >
+                Settle Payment
+              </Button>
+            )}
             <Link to="/tours" className="w-full sm:w-auto">
               <Button variant="outline" size="md" className="w-full sm:w-auto">
                 Explore More
               </Button>
             </Link>
             <Button
-              variant="primary"
+              variant="outline"
               size="md"
               onClick={() => navigate('/dashboard/bookings')}
               className="w-full sm:w-auto"
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              My Bookings Dashboard
+              My Bookings
             </Button>
           </div>
         </div>
@@ -419,6 +483,14 @@ export function BookingConfirmationPage() {
         cancelText="Keep Reservation"
         isConfirming={isCancelling}
         variant="danger"
+      />
+
+      {/* Payment Settlement Modal */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        booking={booking}
+        onPaymentSuccess={handlePaymentSuccess}
       />
     </div>
   );

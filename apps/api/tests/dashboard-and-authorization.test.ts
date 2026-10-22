@@ -328,6 +328,9 @@ describe('Phase 8: User & Admin Dashboards & Authorization', () => {
         paymentReference: 'PAY-REF-001',
         status: PaymentStatus.SUCCEEDED,
       } as never);
+      vi.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => {
+        return callback(prisma);
+      });
       vi.spyOn(prisma.payment, 'update').mockResolvedValue({
         id: '60000000-0000-4000-a000-000000000006',
         paymentReference: 'PAY-REF-001',
